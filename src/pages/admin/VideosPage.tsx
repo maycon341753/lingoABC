@@ -5,6 +5,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/lib/supabase";
+import { useAuth } from "@/contexts/AuthContext";
 
 type VideoMediaRow = {
   id: string;
@@ -17,6 +18,7 @@ type VideoMediaRow = {
 };
 
 const VideosPage = () => {
+  const { user, isAdmin } = useAuth();
   const [uploadOpen, setUploadOpen] = useState(false);
   const [file, setFile] = useState<File | null>(null);
   const [title, setTitle] = useState("");
@@ -24,6 +26,10 @@ const VideosPage = () => {
   const [subject, setSubject] = useState("");
   const [moduleName, setModuleName] = useState("");
   const [isMusic, setIsMusic] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const [uploadStartedAt, setUploadStartedAt] = useState<number | null>(null);
+  const [uploadElapsedSec, setUploadElapsedSec] = useState(0);
   const [rows, setRows] = useState<VideoMediaRow[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -49,12 +55,28 @@ const VideosPage = () => {
     };
   }, []);
 
+  useEffect(() => {
+    if (!uploading || uploadStartedAt == null) return;
+    const id = window.setInterval(() => {
+      setUploadElapsedSec(Math.floor((Date.now() - uploadStartedAt) / 1000));
+    }, 500);
+    return () => window.clearInterval(id);
+  }, [uploadStartedAt, uploading]);
+
   return (
     <div>
       <h1 className="text-2xl font-display font-extrabold mb-6">Vídeos ⚙️</h1>
 
       <div className="mb-6">
-        <Button className="bg-gradient-hero rounded-xl font-bold" type="button" onClick={() => setUploadOpen(true)}>
+        <Button
+          className="bg-gradient-hero rounded-xl font-bold"
+          type="button"
+          onClick={() => {
+            setUploadError(null);
+            setUploadOpen(true);
+          }}
+          disabled={!isAdmin}
+        >
           Upload Vídeo/Música
         </Button>
       </div>
@@ -65,6 +87,11 @@ const VideosPage = () => {
             <DialogTitle>Upload de conteúdo</DialogTitle>
           </DialogHeader>
           <div className="grid gap-4">
+            {uploadError && (
+              <div className="rounded-xl border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
+                {uploadError}
+              </div>
+            )}
             <div className="grid gap-2">
               <Label htmlFor="file">Arquivo</Label>
               <input
@@ -72,7 +99,10 @@ const VideosPage = () => {
                 type="file"
                 accept="video/*,audio/*"
                 className="flex h-10 w-full rounded-xl border border-input bg-background px-3 py-2 text-sm"
-                onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+                onChange={(e) => {
+                  setUploadError(null);
+                  setFile(e.target.files?.[0] ?? null);
+                }}
               />
             </div>
             <div className="grid gap-2">
@@ -130,42 +160,103 @@ const VideosPage = () => {
               className="bg-gradient-hero rounded-xl font-bold"
               type="button"
               onClick={async () => {
-                if (!file || !title) {
-                  alert("Selecione um arquivo e informe o título.");
+                setUploadError(null);
+
+                if (!isAdmin) {
+                  setUploadError("Você não tem permissão para enviar arquivos.");
                   return;
                 }
-                const objectName = `uploads/${Date.now()}-${file.name}`;
-                const up = await supabase.storage.from("videos_music").upload(objectName, file);
-                if (up.error) {
-                  alert(up.error.message);
+                if (!user) {
+                  setUploadError("Você precisa estar logado para enviar arquivos.");
                   return;
                 }
-                const ins = await supabase.from("videos_media").insert({
-                  title,
-                  description: description || null,
-                  subject: subject || null,
-                  module: moduleName || null,
-                  bucket: "videos_music",
-                  object_name: objectName,
-                  is_music: isMusic,
-                  active: true,
-                });
-                if (ins.error) {
-                  alert(ins.error.message);
+                if (!file || !title.trim()) {
+                  setUploadError("Selecione um arquivo e informe o título.");
                   return;
                 }
-                alert("Upload concluído. Conteúdo disponível em /videos.");
-                await loadRows();
-                setUploadOpen(false);
-                setFile(null);
-                setTitle("");
-                setDescription("");
-                setSubject("");
-                setModuleName("");
-                setIsMusic(false);
+
+                const maxBytes = 50 * 1024 * 1024;
+                if (file.size > maxBytes) {
+                  setUploadError("Arquivo muito grande. Tente um arquivo menor (até 50 MB).");
+                  return;
+                }
+
+                try {
+                  setUploading(true);
+                  setUploadStartedAt(Date.now());
+                  setUploadElapsedSec(0);
+
+                  const safeName = file.name
+                    .replace(/\s+/g, "_")
+                    .replace(/[^\w.\-()]+/g, "_");
+                  const uuid =
+                    typeof globalThis !== "undefined" && globalThis.crypto?.randomUUID
+                      ? globalThis.crypto.randomUUID()
+                      : String(Date.now());
+                  const objectName = `uploads/${uuid}-${safeName}`;
+
+                  const up = await supabase.storage.from("videos_music").upload(objectName, file, {
+                    cacheControl: "3600",
+                    contentType: file.type || undefined,
+                    upsert: false,
+                  });
+                  if (up.error) {
+                    const msg = up.error.message || "Falha no upload.";
+                    if (msg.toLowerCase().includes("row-level security") || msg.toLowerCase().includes("rls")) {
+                      setUploadError(
+                        "Permissão negada para upload. No Supabase: Storage → Policies do bucket videos_music → permitir INSERT/UPDATE/DELETE para admin/super_admin.",
+                      );
+                    } else if (msg.toLowerCase().includes("http2") || msg.toLowerCase().includes("protocol")) {
+                      setUploadError(
+                        `Falha de rede (HTTP/2). Tente: 1) renomear o arquivo sem espaços, 2) enviar um arquivo menor (ex.: < 20MB), 3) testar upload direto no Supabase Storage. Detalhe: ${msg}`,
+                      );
+                    } else {
+                      setUploadError(msg);
+                    }
+                    return;
+                  }
+
+                  const ins = await supabase.from("videos_media").insert({
+                    title: title.trim(),
+                    description: description || null,
+                    subject: subject || null,
+                    module: moduleName || null,
+                    bucket: "videos_music",
+                    object_name: objectName,
+                    is_music: isMusic,
+                    active: true,
+                    owner_id: user.id,
+                  });
+                  if (ins.error) {
+                    setUploadError(ins.error.message);
+                    return;
+                  }
+
+                  await loadRows();
+                  setUploadOpen(false);
+                  setFile(null);
+                  setTitle("");
+                  setDescription("");
+                  setSubject("");
+                  setModuleName("");
+                  setIsMusic(false);
+                } catch (e) {
+                  const message = (e as Error)?.message || "Falha ao enviar o arquivo.";
+                  setUploadError(
+                    message.toLowerCase().includes("http2") || message.toLowerCase().includes("protocol")
+                      ? `Falha de rede (HTTP/2). Tente enviar um arquivo menor/compactado e verifique se o upload funciona no painel do Supabase Storage. Detalhe: ${message}`
+                      : message,
+                  );
+                } finally {
+                  setUploading(false);
+                  setUploadStartedAt(null);
+                }
               }}
+              disabled={uploading}
             >
-              Enviar
+              {uploading
+                ? `Enviando... (${String(Math.floor(uploadElapsedSec / 60)).padStart(2, "0")}:${String(uploadElapsedSec % 60).padStart(2, "0")})`
+                : "Enviar"}
             </Button>
           </DialogFooter>
         </DialogContent>
