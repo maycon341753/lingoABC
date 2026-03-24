@@ -4,12 +4,11 @@ import { Button } from "@/components/ui/button";
 import { Menu, X } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import mascot from "@/assets/mascot-owl.png";
-import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
 
 const Navbar = () => {
   const [open, setOpen] = useState(false);
-  const { userLabel, isAdmin } = useAuth();
+  const { userLabel, isAdmin, hasSubscription, signOut } = useAuth();
   const navigate = useNavigate();
 
   return (
@@ -33,33 +32,47 @@ const Navbar = () => {
 
         {/* Desktop */}
         <div className="hidden md:flex items-center gap-6">
-          <Link to="/modulos" className="text-sm font-semibold text-muted-foreground hover:text-foreground transition-colors">
-            Módulos
-          </Link>
-          <Link to="/planos" className="text-sm font-semibold text-muted-foreground hover:text-foreground transition-colors">
-            Planos
-          </Link>
-          <Link to="/sobre" className="text-sm font-semibold text-muted-foreground hover:text-foreground transition-colors">
-            Sobre
-          </Link>
+          {userLabel && (
+            <Button variant="outline" className="rounded-xl font-bold" onClick={() => navigate("/modulos")}>
+              Módulos
+            </Button>
+          )}
+          {!userLabel && (
+            <Link to="/planos" className="text-sm font-semibold text-muted-foreground hover:text-foreground transition-colors">
+              Planos
+            </Link>
+          )}
+          {!userLabel && (
+            <Link to="/sobre" className="text-sm font-semibold text-muted-foreground hover:text-foreground transition-colors">
+              Sobre
+            </Link>
+          )}
           {userLabel ? (
             <>
               <Link to="/perfil" className="text-sm font-semibold text-muted-foreground hover:text-foreground transition-colors">
                 {userLabel}
               </Link>
+              <Button variant="outline" className="rounded-xl font-bold" onClick={() => navigate("/perfil")}>
+                Perfil
+              </Button>
               {isAdmin && (
                 <Button variant="outline" className="rounded-xl font-bold" onClick={() => navigate("/admin")}>
                   Admin
                 </Button>
               )}
               <Button variant="outline" className="rounded-xl font-bold" onClick={() => navigate("/dashboard")}>
-                Painel
+                Dashboard
               </Button>
+              {!hasSubscription && (
+                <Button className="bg-gradient-hero rounded-xl font-bold" onClick={() => navigate("/planos")}>
+                  Assinar Plano
+                </Button>
+              )}
               <Button
                 className="bg-gradient-hero rounded-xl font-bold"
                 onClick={async () => {
-                  await supabase.auth.signOut();
-                  navigate("/");
+                  await signOut();
+                  navigate("/login", { replace: true });
                 }}
               >
                 Sair
@@ -93,14 +106,43 @@ const Navbar = () => {
             exit={{ height: 0, opacity: 0 }}
           >
             <div className="flex flex-col gap-3 pt-2">
-              <Link to="/modulos" className="text-sm font-semibold py-2" onClick={() => setOpen(false)}>Módulos</Link>
-              <Link to="/planos" className="text-sm font-semibold py-2" onClick={() => setOpen(false)}>Planos</Link>
-              <Link to="/sobre" className="text-sm font-semibold py-2" onClick={() => setOpen(false)}>Sobre</Link>
+              {userLabel && (
+                <Button
+                  variant="outline"
+                  className="rounded-xl font-bold"
+                  onClick={() => {
+                    navigate("/modulos");
+                    setOpen(false);
+                  }}
+                >
+                  Módulos
+                </Button>
+              )}
+              {!userLabel && (
+                <Link to="/planos" className="text-sm font-semibold py-2" onClick={() => setOpen(false)}>
+                  Planos
+                </Link>
+              )}
+              {!userLabel && (
+                <Link to="/sobre" className="text-sm font-semibold py-2" onClick={() => setOpen(false)}>
+                  Sobre
+                </Link>
+              )}
               {userLabel ? (
                 <>
                   <Link to="/perfil" className="text-sm font-semibold py-2" onClick={() => setOpen(false)}>
                     {userLabel}
                   </Link>
+                  <Button
+                    variant="outline"
+                    className="rounded-xl font-bold"
+                    onClick={() => {
+                      navigate("/perfil");
+                      setOpen(false);
+                    }}
+                  >
+                    Perfil
+                  </Button>
                   {isAdmin && (
                     <Button
                       variant="outline"
@@ -114,13 +156,24 @@ const Navbar = () => {
                     </Button>
                   )}
                   <Button variant="outline" className="rounded-xl font-bold" onClick={() => { navigate("/dashboard"); setOpen(false); }}>
-                    Painel
+                    Dashboard
                   </Button>
+                  {!hasSubscription && (
+                    <Button
+                      className="bg-gradient-hero rounded-xl font-bold"
+                      onClick={() => {
+                        navigate("/planos");
+                        setOpen(false);
+                      }}
+                    >
+                      Assinar Plano
+                    </Button>
+                  )}
                   <Button
                     className="bg-gradient-hero rounded-xl font-bold"
                     onClick={async () => {
-                      await supabase.auth.signOut();
-                      navigate("/");
+                      await signOut();
+                      navigate("/login", { replace: true });
                       setOpen(false);
                     }}
                   >

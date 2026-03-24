@@ -1,11 +1,13 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Link, useNavigate } from "react-router-dom";
 import mascot from "@/assets/mascot-owl.png";
 import { supabase } from "@/lib/supabase";
+import { useAuth } from "@/contexts/AuthContext";
 
 const LoginPage = () => {
   const [email, setEmail] = useState("");
@@ -13,6 +15,11 @@ const LoginPage = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [loggedUserLabel, setLoggedUserLabel] = useState<string | null>(null);
   const [loggedUserIsAdmin, setLoggedUserIsAdmin] = useState(false);
+  const [successOpen, setSuccessOpen] = useState(false);
+  const [successName, setSuccessName] = useState<string>("Usuário");
+  const [successTarget, setSuccessTarget] = useState<string>("/perfil");
+  const successRedirectedRef = useRef(false);
+  const { signOut } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -59,6 +66,13 @@ const LoginPage = () => {
     };
   }, []);
 
+  const proceedToTarget = () => {
+    if (successRedirectedRef.current) return;
+    successRedirectedRef.current = true;
+    setSuccessOpen(false);
+    navigate(successTarget);
+  };
+
   return (
     <div className="min-h-screen flex items-center justify-center px-4 py-12">
       <motion.div
@@ -73,6 +87,29 @@ const LoginPage = () => {
           <h1 className="text-2xl font-display font-extrabold">Bem-vindo de volta! 👋</h1>
           <p className="text-muted-foreground text-sm mt-1">Entre na sua conta</p>
         </div>
+
+        <Dialog
+          open={successOpen}
+          onOpenChange={(open) => {
+            setSuccessOpen(open);
+            if (!open) proceedToTarget();
+          }}
+        >
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Acesso liberado</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-2">
+              <p className="font-bold">Bem-vindo, {successName}!</p>
+              <p className="text-sm text-muted-foreground">Redirecionando…</p>
+            </div>
+            <div className="pt-4">
+              <Button className="w-full bg-gradient-hero rounded-xl font-bold" type="button" onClick={proceedToTarget}>
+                Continuar
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
 
         {loggedUserLabel && (
           <div className="mb-4 rounded-xl border border-border bg-muted/50 px-4 py-3 text-sm">
@@ -91,7 +128,9 @@ const LoginPage = () => {
                 variant="outline"
                 className="rounded-xl"
                 onClick={async () => {
-                  await supabase.auth.signOut();
+                  await signOut();
+                  setLoggedUserLabel(null);
+                  setLoggedUserIsAdmin(false);
                 }}
               >
                 Sair
@@ -130,8 +169,13 @@ const LoginPage = () => {
             setLoggedUserLabel(data.user.email ?? null);
             setLoggedUserIsAdmin(isAdmin);
             setIsSubmitting(false);
-            alert(`Bem-vindo, ${identified}!`);
-            navigate(isAdmin ? "/admin" : "/perfil");
+            successRedirectedRef.current = false;
+            setSuccessName(identified);
+            setSuccessTarget(isAdmin ? "/admin" : "/perfil");
+            setSuccessOpen(true);
+            window.setTimeout(() => {
+              proceedToTarget();
+            }, 1200);
           }}
         >
           <div>

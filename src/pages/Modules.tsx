@@ -4,6 +4,7 @@ import { Lock, Star, CheckCircle, BookOpen, Calculator, Globe } from "lucide-rea
 import Navbar from "@/components/landing/Navbar";
 import Footer from "@/components/landing/Footer";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
 
 const subjects = [
   { id: "math", name: "Matemática", icon: Calculator, color: "bg-secondary" },
@@ -31,6 +32,7 @@ const ModulesPage = () => {
   const [selectedSubject, setSelectedSubject] = useState("math");
   const lessons = generateLessons(40);
   const navigate = useNavigate();
+  const { loading, user, hasSubscription } = useAuth();
 
   return (
     <div className="min-h-screen">
@@ -111,6 +113,10 @@ const ModulesPage = () => {
                 whileTap={!lesson.locked ? { scale: 0.95 } : {}}
                 onClick={() => {
                   if (lesson.locked) return;
+                  if (!loading && user && !hasSubscription) {
+                    navigate("/planos");
+                    return;
+                  }
                   const moduleName = modules[selectedModule]?.name ?? "Descoberta";
                   navigate(`/licao?modulo=${encodeURIComponent(moduleName)}&materia=${encodeURIComponent(selectedSubject)}&licao=${lesson.id}`);
                 }}

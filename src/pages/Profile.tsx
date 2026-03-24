@@ -3,6 +3,7 @@ import Navbar from "@/components/landing/Navbar";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/lib/supabase";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
 
 type ProfileRow = {
   name: string | null;
@@ -10,11 +11,24 @@ type ProfileRow = {
   role: string | null;
 };
 
+type ProfilePlanRow = {
+  plan_name: string | null;
+  plan_code: string | null;
+  period_months: number | null;
+  price: number | null;
+  billing_cycle: string | null;
+  subscription_status: string | null;
+  started_at: string | null;
+  expires_at: string | null;
+};
+
 const ProfilePage = () => {
   const [email, setEmail] = useState<string | null>(null);
   const [profile, setProfile] = useState<ProfileRow | null>(null);
+  const [plan, setPlan] = useState<ProfilePlanRow | null>(null);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
+  const { signOut } = useAuth();
 
   useEffect(() => {
     let mounted = true;
@@ -36,6 +50,13 @@ const ProfilePage = () => {
       const { data: profileData } = await supabase.from("profiles").select("name, cpf, role").eq("id", data.user.id).maybeSingle();
       if (!mounted) return;
       setProfile(profileData ?? null);
+      const { data: planData } = await supabase
+        .from("v_user_profile_plan")
+        .select("plan_name, plan_code, period_months, price, billing_cycle, subscription_status, started_at, expires_at")
+        .eq("user_id", data.user.id)
+        .maybeSingle();
+      if (!mounted) return;
+      setPlan(planData ?? null);
       setLoading(false);
     };
 
@@ -75,6 +96,36 @@ const ProfilePage = () => {
                 <span className="font-bold text-right">{profile?.role ?? "user"}</span>
               </div>
 
+              <div className="pt-4">
+                <h2 className="font-display font-bold text-lg mb-2">Assinatura</h2>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between gap-4">
+                    <span className="text-sm text-muted-foreground">Plano</span>
+                    <span className="font-bold text-right">{plan?.plan_name ?? "—"}</span>
+                  </div>
+                  <div className="flex items-center justify-between gap-4">
+                    <span className="text-sm text-muted-foreground">Ciclo</span>
+                    <span className="font-bold text-right">{plan?.billing_cycle ?? "—"}</span>
+                  </div>
+                  <div className="flex items-center justify-between gap-4">
+                    <span className="text-sm text-muted-foreground">Status</span>
+                    <span className="font-bold text-right">{plan?.subscription_status ?? "—"}</span>
+                  </div>
+                  <div className="flex items-center justify-between gap-4">
+                    <span className="text-sm text-muted-foreground">Início</span>
+                    <span className="font-bold text-right">{plan?.started_at ? new Date(plan.started_at).toLocaleDateString() : "—"}</span>
+                  </div>
+                  <div className="flex items-center justify-between gap-4">
+                    <span className="text-sm text-muted-foreground">Vencimento</span>
+                    <span className="font-bold text-right">{plan?.expires_at ? new Date(plan.expires_at).toLocaleDateString() : "—"}</span>
+                  </div>
+                  <div className="flex items-center justify-between gap-4">
+                    <span className="text-sm text-muted-foreground">Valor</span>
+                    <span className="font-bold text-right">{plan?.price != null ? `R$ ${plan.price.toFixed(2)}` : "—"}</span>
+                  </div>
+                </div>
+              </div>
+
               <div className="pt-4 flex gap-3">
                 <Button className="rounded-xl" onClick={() => navigate("/dashboard")}>
                   Ir ao painel
@@ -83,8 +134,8 @@ const ProfilePage = () => {
                   variant="outline"
                   className="rounded-xl"
                   onClick={async () => {
-                    await supabase.auth.signOut();
-                    navigate("/");
+                    await signOut();
+                    navigate("/login", { replace: true });
                   }}
                 >
                   Sair

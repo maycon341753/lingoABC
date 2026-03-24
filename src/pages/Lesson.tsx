@@ -1,9 +1,11 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo, useEffect } from "react";
 import { motion, AnimatePresence, Reorder } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { CheckCircle, XCircle, ArrowRight, Star, GripVertical } from "lucide-react";
 import Navbar from "@/components/landing/Navbar";
 import confetti from "@/lib/confetti";
+import { useSearchParams } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
 
 type LessonType = "multiple_choice" | "drag_order" | "complete_word" | "image_match";
 
@@ -38,49 +40,6 @@ interface ImageMatchQ extends BaseQuestion {
 }
 
 type Question = MultipleChoiceQ | DragOrderQ | CompleteWordQ | ImageMatchQ;
-
-const sampleQuestions: Question[] = [
-  { type: "multiple_choice", question: "Quanto é 2 + 3?", options: ["4", "5", "6", "3"], correct: 1 },
-  {
-    type: "drag_order",
-    question: "Organize os números em ordem crescente:",
-    items: ["3", "1", "4", "2"],
-    correctOrder: ["1", "2", "3", "4"],
-  },
-  {
-    type: "complete_word",
-    question: "Complete a palavra:",
-    word: "ESCOLA",
-    hint: "Lugar onde estudamos",
-    missingIndices: [1, 3, 5],
-  },
-  {
-    type: "image_match",
-    question: "Associe o animal ao nome em inglês:",
-    pairs: [
-      { emoji: "🐱", label: "Cat" },
-      { emoji: "🐶", label: "Dog" },
-      { emoji: "🐦", label: "Bird" },
-      { emoji: "🐟", label: "Fish" },
-    ],
-    shuffledLabels: ["Dog", "Fish", "Cat", "Bird"],
-  },
-  { type: "multiple_choice", question: "Qual é a primeira letra do alfabeto?", options: ["B", "C", "A", "D"], correct: 2 },
-  {
-    type: "complete_word",
-    question: "Complete a palavra:",
-    word: "AMIGO",
-    hint: "Pessoa querida",
-    missingIndices: [0, 2, 4],
-  },
-  {
-    type: "drag_order",
-    question: "Organize as letras em ordem alfabética:",
-    items: ["D", "B", "A", "C"],
-    correctOrder: ["A", "B", "C", "D"],
-  },
-  { type: "multiple_choice", question: "Como se diz 'gato' em inglês?", options: ["Dog", "Cat", "Bird", "Fish"], correct: 1 },
-];
 
 // --- Sub-components for each lesson type ---
 
@@ -300,6 +259,93 @@ const ImageMatch = ({
 // --- Main component ---
 
 const LessonPage = () => {
+  const { loading, user, hasSubscription } = useAuth();
+  const [searchParams] = useSearchParams();
+  const materia = (searchParams.get("materia") || "math").toLowerCase();
+
+  useEffect(() => {
+    if (!loading && user && !hasSubscription) {
+      window.location.href = "/planos";
+    }
+  }, [hasSubscription, loading, user]);
+
+  const questions: Question[] = useMemo(() => {
+    if (materia === "math") {
+      return [
+        { type: "multiple_choice", question: "Quanto é 1 + 2?", options: ["2", "3", "4", "5"], correct: 1 },
+        { type: "drag_order", question: "Organize os números em ordem crescente:", items: ["3", "1", "4", "2"], correctOrder: ["1", "2", "3", "4"] },
+        { type: "multiple_choice", question: "Quanto é 7 − 2?", options: ["6", "4", "5", "3"], correct: 2 },
+        { type: "multiple_choice", question: "Qual número é maior?", options: ["3", "5", "4", "2"], correct: 1 },
+        { type: "drag_order", question: "Ordene os números:", items: ["2", "1", "3"], correctOrder: ["1", "2", "3"] },
+        { type: "multiple_choice", question: "Qual número vem antes de 5?", options: ["4", "6", "3", "2"], correct: 0 },
+        { type: "drag_order", question: "Ordene de menor para maior:", items: ["4", "2", "5", "3"], correctOrder: ["2", "3", "4", "5"] },
+        { type: "multiple_choice", question: "Qual é o número 10?", options: ["8", "9", "10", "7"], correct: 2 },
+      ];
+    }
+    if (materia === "port") {
+      return [
+        { type: "complete_word", question: "Complete a palavra:", word: "ESCOLA", hint: "Lugar onde estudamos", missingIndices: [1, 3, 5] },
+        { type: "multiple_choice", question: "Qual é a vogal?", options: ["B", "E", "R", "T"], correct: 1 },
+        {
+          type: "image_match",
+          question: "Associe a fruta ao nome:",
+          pairs: [
+            { emoji: "🍎", label: "maçã" },
+            { emoji: "🍌", label: "banana" },
+            { emoji: "🍇", label: "uva" },
+            { emoji: "🍊", label: "laranja" },
+          ],
+          shuffledLabels: ["banana", "laranja", "maçã", "uva"],
+        },
+        { type: "drag_order", question: "Organize em ordem alfabética:", items: ["A", "C", "B", "D"], correctOrder: ["A", "B", "C", "D"] },
+        { type: "complete_word", question: "Complete a palavra:", word: "AMIGO", hint: "Pessoa querida", missingIndices: [0, 2, 4] },
+        { type: "multiple_choice", question: "Qual palavra começa com M?", options: ["sol", "mesa", "rato", "pato"], correct: 1 },
+        {
+          type: "image_match",
+          question: "Associe o animal ao nome:",
+          pairs: [
+            { emoji: "🐱", label: "gato" },
+            { emoji: "🐶", label: "cachorro" },
+            { emoji: "🐦", label: "pássaro" },
+            { emoji: "🐟", label: "peixe" },
+          ],
+          shuffledLabels: ["cachorro", "pássaro", "peixe", "gato"],
+        },
+        { type: "multiple_choice", question: "Quantas letras tem 'MAMÃE'?", options: ["4", "5", "6", "7"], correct: 2 },
+      ];
+    }
+    return [
+      {
+        type: "image_match",
+        question: "Match the animal to the word:",
+        pairs: [
+          { emoji: "🐱", label: "Cat" },
+          { emoji: "🐶", label: "Dog" },
+          { emoji: "🐦", label: "Bird" },
+          { emoji: "🐟", label: "Fish" },
+        ],
+        shuffledLabels: ["Dog", "Fish", "Cat", "Bird"],
+      },
+      { type: "multiple_choice", question: "How do you say 'cachorro' in English?", options: ["Cat", "Bird", "Dog", "Fish"], correct: 2 },
+      { type: "drag_order", question: "Order letters:", items: ["D", "B", "A", "C"], correctOrder: ["A", "B", "C", "D"] },
+      { type: "complete_word", question: "Complete the word:", word: "APPLE", hint: "Fruit", missingIndices: [0, 2, 4] },
+      { type: "multiple_choice", question: "What color is the sky?", options: ["Green", "Blue", "Red", "Yellow"], correct: 1 },
+      {
+        type: "image_match",
+        question: "Match the fruit:",
+        pairs: [
+          { emoji: "🍎", label: "Apple" },
+          { emoji: "🍌", label: "Banana" },
+          { emoji: "🍇", label: "Grape" },
+          { emoji: "🍊", label: "Orange" },
+        ],
+        shuffledLabels: ["Banana", "Orange", "Apple", "Grape"],
+      },
+      { type: "multiple_choice", question: "Select the vowel:", options: ["B", "A", "C", "D"], correct: 1 },
+      { type: "multiple_choice", question: "How do you say 'gato' in English?", options: ["Dog", "Cat", "Bird", "Fish"], correct: 1 },
+    ];
+  }, [materia]);
+
   const [current, setCurrent] = useState(0);
   const [answered, setAnswered] = useState(false);
   const [score, setScore] = useState(0);
@@ -318,13 +364,13 @@ const LessonPage = () => {
   const [matches, setMatches] = useState<Record<string, string>>({});
   const [selectedEmoji, setSelectedEmoji] = useState<string | null>(null);
 
-  const q = sampleQuestions[current];
-  const progress = ((current + (answered ? 1 : 0)) / sampleQuestions.length) * 100;
+  const q = questions[current];
+  const progress = ((current + (answered ? 1 : 0)) / questions.length) * 100;
 
   const [lastCorrect, setLastCorrect] = useState(false);
 
   const initQuestion = useCallback((idx: number) => {
-    const question = sampleQuestions[idx];
+    const question = questions[idx];
     setAnswered(false);
     setMcSelected(null);
     setLastCorrect(false);
@@ -334,7 +380,7 @@ const LessonPage = () => {
       setMatches({});
       setSelectedEmoji(null);
     }
-  }, []);
+  }, [questions]);
 
   const markCorrect = () => {
     setScore((s) => s + 20);
@@ -387,7 +433,7 @@ const LessonPage = () => {
   };
 
   const handleNext = () => {
-    if (current < sampleQuestions.length - 1) {
+    if (current < questions.length - 1) {
       const next = current + 1;
       setCurrent(next);
       initQuestion(next);
@@ -396,10 +442,10 @@ const LessonPage = () => {
     }
   };
 
-  // Init first question on mount
-  useState(() => {
+  useEffect(() => {
+    setCurrent(0);
     initQuestion(0);
-  });
+  }, [initQuestion]);
 
   if (finished) {
     return (
@@ -431,7 +477,7 @@ const LessonPage = () => {
         {/* Progress bar */}
         <div className="mb-8">
           <div className="flex justify-between items-center mb-2">
-            <span className="text-sm font-bold text-muted-foreground">Pergunta {current + 1}/{sampleQuestions.length}</span>
+            <span className="text-sm font-bold text-muted-foreground">Pergunta {current + 1}/{questions.length}</span>
             <span className="text-sm font-bold text-sun flex items-center gap-1"><Star className="w-4 h-4 fill-sun" /> {score} pts</span>
           </div>
           <div className="h-3 bg-muted rounded-full overflow-hidden">

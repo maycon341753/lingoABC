@@ -73,7 +73,7 @@ const RegisterPage = () => {
               }
 
               setIsSubmitting(false);
-              navigate("/dashboard");
+              navigate("/planos");
               return;
             }
 
