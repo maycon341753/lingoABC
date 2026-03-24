@@ -1,13 +1,44 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Menu, X } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import mascot from "@/assets/mascot-owl.png";
+import { supabase } from "@/lib/supabase";
 
 const Navbar = () => {
   const [open, setOpen] = useState(false);
+  const [userLabel, setUserLabel] = useState<string | null>(null);
   const navigate = useNavigate();
+
+  useEffect(() => {
+    let mounted = true;
+
+    const sync = async () => {
+      const { data, error } = await supabase.auth.getUser();
+      if (!mounted) return;
+      if (error || !data.user) {
+        setUserLabel(null);
+        return;
+      }
+
+      let label = data.user.email ?? "Usuário";
+      const { data: profile } = await supabase.from("profiles").select("name").eq("id", data.user.id).maybeSingle();
+      if (!mounted) return;
+      if (profile?.name) label = profile.name;
+      setUserLabel(label);
+    };
+
+    sync();
+    const { data: subscription } = supabase.auth.onAuthStateChange(() => {
+      sync();
+    });
+
+    return () => {
+      mounted = false;
+      subscription.subscription.unsubscribe();
+    };
+  }, []);
 
   return (
     <nav className="sticky top-0 z-50 bg-background/80 backdrop-blur-md border-b border-border">
@@ -30,19 +61,34 @@ const Navbar = () => {
           <Link to="/sobre" className="text-sm font-semibold text-muted-foreground hover:text-foreground transition-colors">
             Sobre
           </Link>
-          <Button
-            variant="outline"
-            className="rounded-xl font-bold"
-            onClick={() => navigate("/login")}
-          >
-            Entrar
-          </Button>
-          <Button
-            className="bg-gradient-hero rounded-xl font-bold"
-            onClick={() => navigate("/cadastro")}
-          >
-            Começar Grátis
-          </Button>
+          {userLabel ? (
+            <>
+              <Link to="/perfil" className="text-sm font-semibold text-muted-foreground hover:text-foreground transition-colors">
+                {userLabel}
+              </Link>
+              <Button variant="outline" className="rounded-xl font-bold" onClick={() => navigate("/dashboard")}>
+                Painel
+              </Button>
+              <Button
+                className="bg-gradient-hero rounded-xl font-bold"
+                onClick={async () => {
+                  await supabase.auth.signOut();
+                  navigate("/");
+                }}
+              >
+                Sair
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button variant="outline" className="rounded-xl font-bold" onClick={() => navigate("/login")}>
+                Entrar
+              </Button>
+              <Button className="bg-gradient-hero rounded-xl font-bold" onClick={() => navigate("/cadastro")}>
+                Começar Grátis
+              </Button>
+            </>
+          )}
         </div>
 
         {/* Mobile toggle */}
@@ -64,8 +110,31 @@ const Navbar = () => {
               <Link to="/modulos" className="text-sm font-semibold py-2" onClick={() => setOpen(false)}>Módulos</Link>
               <Link to="/planos" className="text-sm font-semibold py-2" onClick={() => setOpen(false)}>Planos</Link>
               <Link to="/sobre" className="text-sm font-semibold py-2" onClick={() => setOpen(false)}>Sobre</Link>
-              <Button variant="outline" className="rounded-xl font-bold" onClick={() => { navigate("/login"); setOpen(false); }}>Entrar</Button>
-              <Button className="bg-gradient-hero rounded-xl font-bold" onClick={() => { navigate("/cadastro"); setOpen(false); }}>Começar Grátis</Button>
+              {userLabel ? (
+                <>
+                  <Link to="/perfil" className="text-sm font-semibold py-2" onClick={() => setOpen(false)}>
+                    {userLabel}
+                  </Link>
+                  <Button variant="outline" className="rounded-xl font-bold" onClick={() => { navigate("/dashboard"); setOpen(false); }}>
+                    Painel
+                  </Button>
+                  <Button
+                    className="bg-gradient-hero rounded-xl font-bold"
+                    onClick={async () => {
+                      await supabase.auth.signOut();
+                      navigate("/");
+                      setOpen(false);
+                    }}
+                  >
+                    Sair
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <Button variant="outline" className="rounded-xl font-bold" onClick={() => { navigate("/login"); setOpen(false); }}>Entrar</Button>
+                  <Button className="bg-gradient-hero rounded-xl font-bold" onClick={() => { navigate("/cadastro"); setOpen(false); }}>Começar Grátis</Button>
+                </>
+              )}
             </div>
           </motion.div>
         )}

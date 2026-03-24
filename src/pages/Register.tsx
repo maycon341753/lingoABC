@@ -5,11 +5,15 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Link, useNavigate } from "react-router-dom";
 import mascot from "@/assets/mascot-owl.png";
+import { supabase } from "@/lib/supabase";
 
 const RegisterPage = () => {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [cpf, setCpf] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const navigate = useNavigate();
 
   return (
@@ -27,7 +31,56 @@ const RegisterPage = () => {
           <p className="text-muted-foreground text-sm mt-1">É grátis para começar</p>
         </div>
 
-        <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); navigate("/dashboard"); }}>
+        <form
+          className="space-y-4"
+          onSubmit={async (e) => {
+            e.preventDefault();
+            if (isSubmitting) return;
+            if (!/^\d{11}$/.test(cpf)) {
+              alert("CPF inválido. Use 11 dígitos.");
+              return;
+            }
+            if (password !== confirmPassword) {
+              alert("As senhas não coincidem.");
+              return;
+            }
+            setIsSubmitting(true);
+            const { data, error } = await supabase.auth.signUp({
+              email,
+              password,
+              options: {
+                data: { name, cpf },
+              },
+            });
+
+            if (error) {
+              setIsSubmitting(false);
+              alert(error.message);
+              return;
+            }
+
+            if (data.user && data.session) {
+              const { error: profileError } = await supabase.from("profiles").upsert({
+                id: data.user.id,
+                name,
+                cpf,
+              });
+
+              if (profileError) {
+                setIsSubmitting(false);
+                alert(profileError.message);
+                return;
+              }
+
+              setIsSubmitting(false);
+              navigate("/dashboard");
+              return;
+            }
+
+            setIsSubmitting(false);
+            alert("Conta criada. Ajuste o Supabase para não exigir confirmação de e-mail.");
+          }}
+        >
           <div>
             <Label htmlFor="name" className="font-bold">Nome do responsável</Label>
             <Input id="name" placeholder="Seu nome" className="rounded-xl mt-1" value={name} onChange={(e) => setName(e.target.value)} />
@@ -37,10 +90,28 @@ const RegisterPage = () => {
             <Input id="email" type="email" placeholder="seu@email.com" className="rounded-xl mt-1" value={email} onChange={(e) => setEmail(e.target.value)} />
           </div>
           <div>
+            <Label htmlFor="cpf" className="font-bold">CPF</Label>
+            <Input
+              id="cpf"
+              placeholder="00000000000"
+              className="rounded-xl mt-1"
+              value={cpf}
+              onChange={(e) => setCpf(e.target.value.replace(/\D/g, "").slice(0, 11))}
+              inputMode="numeric"
+              pattern="[0-9]{11}"
+              maxLength={11}
+              required
+            />
+          </div>
+          <div>
             <Label htmlFor="password" className="font-bold">Senha</Label>
             <Input id="password" type="password" placeholder="Mínimo 6 caracteres" className="rounded-xl mt-1" value={password} onChange={(e) => setPassword(e.target.value)} />
           </div>
-          <Button type="submit" className="w-full bg-gradient-hero font-bold rounded-xl py-5 text-lg">
+          <div>
+            <Label htmlFor="confirmPassword" className="font-bold">Confirmar senha</Label>
+            <Input id="confirmPassword" type="password" placeholder="Repita sua senha" className="rounded-xl mt-1" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} />
+          </div>
+          <Button type="submit" disabled={isSubmitting} className="w-full bg-gradient-hero font-bold rounded-xl py-5 text-lg">
             Criar Conta Grátis 🚀
           </Button>
         </form>

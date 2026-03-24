@@ -73,7 +73,7 @@ const AdminDashboard = () => (
   </div>
 );
 
-const CrudTable = ({ columns, data, renderRow }: { columns: string[]; data: any[]; renderRow: (item: any, i: number) => React.ReactNode }) => (
+const CrudTable = <T,>({ columns, data, renderRow }: { columns: string[]; data: T[]; renderRow: (item: T, i: number) => React.ReactNode }) => (
   <div className="bg-card rounded-2xl shadow-card overflow-hidden">
     <div className="overflow-x-auto">
       <table className="w-full text-sm">
