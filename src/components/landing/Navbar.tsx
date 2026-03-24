@@ -1,47 +1,16 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Menu, X } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import mascot from "@/assets/mascot-owl.png";
 import { supabase } from "@/lib/supabase";
+import { useAuth } from "@/contexts/AuthContext";
 
 const Navbar = () => {
   const [open, setOpen] = useState(false);
-  const [userLabel, setUserLabel] = useState<string | null>(null);
-  const [isAdmin, setIsAdmin] = useState(false);
+  const { userLabel, isAdmin } = useAuth();
   const navigate = useNavigate();
-
-  useEffect(() => {
-    let mounted = true;
-
-    const sync = async () => {
-      const { data, error } = await supabase.auth.getUser();
-      if (!mounted) return;
-      if (error || !data.user) {
-        setUserLabel(null);
-        setIsAdmin(false);
-        return;
-      }
-
-      let label = data.user.email ?? "Usuário";
-      const { data: profile } = await supabase.from("profiles").select("name, role").eq("id", data.user.id).maybeSingle();
-      if (!mounted) return;
-      if (profile?.name) label = profile.name;
-      setUserLabel(label);
-      setIsAdmin(profile?.role === "admin");
-    };
-
-    sync();
-    const { data: subscription } = supabase.auth.onAuthStateChange(() => {
-      sync();
-    });
-
-    return () => {
-      mounted = false;
-      subscription.subscription.unsubscribe();
-    };
-  }, []);
 
   return (
     <nav className="sticky top-0 z-50 bg-background/80 backdrop-blur-md border-b border-border">
