@@ -25,12 +25,32 @@ const LoginPage = () => {
       }
 
       setLoggedUserLabel(data.user.email ?? "Usuário logado");
+      supabase
+        .from("profiles")
+        .select("role")
+        .eq("id", data.user.id)
+        .maybeSingle()
+        .then(({ data: profile }) => {
+          if (!mounted) return;
+          setLoggedUserIsAdmin(profile?.role === "admin" || profile?.role === "super_admin");
+        });
     });
 
     const { data: subscription } = supabase.auth.onAuthStateChange((_event, session) => {
       if (!mounted) return;
       setLoggedUserLabel(session?.user?.email ?? null);
       setLoggedUserIsAdmin(false);
+      if (session?.user) {
+        supabase
+          .from("profiles")
+          .select("role")
+          .eq("id", session.user.id)
+          .maybeSingle()
+          .then(({ data: profile }) => {
+            if (!mounted) return;
+            setLoggedUserIsAdmin(profile?.role === "admin" || profile?.role === "super_admin");
+          });
+      }
     });
 
     return () => {
@@ -62,9 +82,9 @@ const LoginPage = () => {
               <Button
                 type="button"
                 className="rounded-xl"
-                onClick={() => navigate(loggedUserIsAdmin ? "/admin" : "/dashboard")}
+                onClick={() => navigate(loggedUserIsAdmin ? "/admin" : "/perfil")}
               >
-                {loggedUserIsAdmin ? "Ir ao admin" : "Ir ao painel"}
+                {loggedUserIsAdmin ? "Ir ao admin" : "Ir ao perfil"}
               </Button>
               <Button
                 type="button"
@@ -106,12 +126,12 @@ const LoginPage = () => {
               .maybeSingle();
 
             if (profileData?.name) identified = profileData.name;
-            const isAdmin = profileData?.role === "admin";
+            const isAdmin = profileData?.role === "admin" || profileData?.role === "super_admin";
             setLoggedUserLabel(data.user.email ?? null);
             setLoggedUserIsAdmin(isAdmin);
             setIsSubmitting(false);
             alert(`Bem-vindo, ${identified}!`);
-            navigate(isAdmin ? "/admin" : "/dashboard");
+            navigate(isAdmin ? "/admin" : "/perfil");
           }}
         >
           <div>

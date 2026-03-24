@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Lock, Star, CheckCircle, BookOpen, Calculator, Globe } from "lucide-react";
 import Navbar from "@/components/landing/Navbar";
 import Footer from "@/components/landing/Footer";
+import { useNavigate } from "react-router-dom";
 
 const subjects = [
   { id: "math", name: "Matemática", icon: Calculator, color: "bg-secondary" },
@@ -29,6 +30,7 @@ const ModulesPage = () => {
   const [selectedModule, setSelectedModule] = useState(0);
   const [selectedSubject, setSelectedSubject] = useState("math");
   const lessons = generateLessons(40);
+  const navigate = useNavigate();
 
   return (
     <div className="min-h-screen">
@@ -107,6 +109,11 @@ const ModulesPage = () => {
                 transition={{ delay: i * 0.02 }}
                 whileHover={!lesson.locked ? { scale: 1.1, y: -4 } : {}}
                 whileTap={!lesson.locked ? { scale: 0.95 } : {}}
+                onClick={() => {
+                  if (lesson.locked) return;
+                  const moduleName = modules[selectedModule]?.name ?? "Descoberta";
+                  navigate(`/licao?modulo=${encodeURIComponent(moduleName)}&materia=${encodeURIComponent(selectedSubject)}&licao=${lesson.id}`);
+                }}
               >
                 {lesson.completed ? (
                   <CheckCircle className="w-6 h-6 mb-0.5" />

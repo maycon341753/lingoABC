@@ -49,7 +49,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
       if (mounted) {
         if (data?.name) setUserLabel(data.name);
-        setIsAdmin(data?.role === "admin");
+        setIsAdmin(data?.role === "admin" || data?.role === "super_admin");
         setLoading(false);
       }
     };
