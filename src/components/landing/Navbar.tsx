@@ -46,7 +46,16 @@ const Navbar = () => {
   return (
     <nav className="sticky top-0 z-50 bg-background/80 backdrop-blur-md border-b border-border">
       <div className="container mx-auto max-w-6xl px-4 h-16 flex items-center justify-between">
-        <Link to="/" className="flex items-center gap-2">
+        <Link
+          to="/"
+          className="flex items-center gap-2"
+          onClick={(e) => {
+            if (userLabel) {
+              e.preventDefault();
+              navigate("/dashboard");
+            }
+          }}
+        >
           <img src={mascot} alt="LingoABC" className="w-9 h-9" />
           <span className="font-display font-extrabold text-xl text-gradient-hero">
             LingoABC
