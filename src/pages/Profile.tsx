@@ -20,6 +20,21 @@ type ProfilePlanRow = {
   subscription_status: string | null;
   started_at: string | null;
   expires_at: string | null;
+  value: number | null;
+};
+
+type SubscriptionWithPlanRow = {
+  status: string | null;
+  started_at: string | null;
+  expires_at: string | null;
+  value: number | null;
+  plans: {
+    code: string | null;
+    name: string | null;
+    period_months: number | null;
+    price: number | null;
+    billing_cycle: string | null;
+  } | null;
 };
 
 const ProfilePage = () => {
@@ -50,13 +65,43 @@ const ProfilePage = () => {
       const { data: profileData } = await supabase.from("profiles").select("name, cpf, role").eq("id", data.user.id).maybeSingle();
       if (!mounted) return;
       setProfile(profileData ?? null);
-      const { data: planData } = await supabase
+      const { data: planData, error: planError } = await supabase
         .from("v_user_profile_plan")
-        .select("plan_name, plan_code, period_months, price, billing_cycle, subscription_status, started_at, expires_at")
+        .select("plan_name, plan_code, period_months, price, billing_cycle, subscription_status, started_at, expires_at, value")
         .eq("user_id", data.user.id)
         .maybeSingle();
       if (!mounted) return;
-      setPlan(planData ?? null);
+      if (!planError && planData) {
+        setPlan(planData ?? null);
+        setLoading(false);
+        return;
+      }
+
+      const { data: subRow } = await supabase
+        .from("subscriptions")
+        .select("status,started_at,expires_at,value,plans(code,name,period_months,price,billing_cycle)")
+        .eq("user_id", data.user.id)
+        .order("expires_at", { ascending: false, nullsFirst: false })
+        .limit(1)
+        .maybeSingle();
+      if (!mounted) return;
+      if (subRow) {
+        const row = subRow as SubscriptionWithPlanRow;
+        const p = row.plans ?? null;
+        setPlan({
+          plan_name: p?.name ?? null,
+          plan_code: p?.code ?? null,
+          period_months: p?.period_months ?? null,
+          price: p?.price ?? null,
+          billing_cycle: p?.billing_cycle ?? null,
+          subscription_status: row.status ?? null,
+          started_at: row.started_at ?? null,
+          expires_at: row.expires_at ?? null,
+          value: row.value ?? null,
+        });
+      } else {
+        setPlan(null);
+      }
       setLoading(false);
     };
 
@@ -101,7 +146,7 @@ const ProfilePage = () => {
                 <div className="space-y-2">
                   <div className="flex items-center justify-between gap-4">
                     <span className="text-sm text-muted-foreground">Plano</span>
-                    <span className="font-bold text-right">{plan?.plan_name ?? "—"}</span>
+                    <span className="font-bold text-right">{plan?.plan_name ?? "Sem assinatura"}</span>
                   </div>
                   <div className="flex items-center justify-between gap-4">
                     <span className="text-sm text-muted-foreground">Ciclo</span>
@@ -121,7 +166,13 @@ const ProfilePage = () => {
                   </div>
                   <div className="flex items-center justify-between gap-4">
                     <span className="text-sm text-muted-foreground">Valor</span>
-                    <span className="font-bold text-right">{plan?.price != null ? `R$ ${plan.price.toFixed(2)}` : "—"}</span>
+                    <span className="font-bold text-right">
+                      {plan?.value != null
+                        ? `R$ ${plan.value.toFixed(2)}`
+                        : plan?.price != null
+                          ? `R$ ${plan.price.toFixed(2)}`
+                          : "—"}
+                    </span>
                   </div>
                 </div>
               </div>

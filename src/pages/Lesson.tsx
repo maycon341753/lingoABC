@@ -539,7 +539,7 @@ const LessonPage = () => {
                 {lastCorrect ? "🎉 Correto! Muito bem!" : "😢 Ops! Tente a próxima!"}
               </motion.p>
               <Button size="lg" className="bg-gradient-hero font-bold rounded-2xl px-8 py-5" onClick={handleNext}>
-                {current < sampleQuestions.length - 1 ? (<>Próxima <ArrowRight className="w-5 h-5 ml-2" /></>) : "Ver resultado 🏆"}
+                {current < questions.length - 1 ? (<>Próxima <ArrowRight className="w-5 h-5 ml-2" /></>) : "Ver resultado 🏆"}
               </Button>
             </motion.div>
           )}
