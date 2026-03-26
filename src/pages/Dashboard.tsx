@@ -3,7 +3,7 @@ import { Star, BookOpen, Flame } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
 import Navbar from "@/components/landing/Navbar";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 
 type UserPlanRow = {
@@ -19,6 +19,12 @@ type SubscriptionWithPlanRow = {
   plans: { name: string | null } | null;
 };
 
+const buildApiUrl = (path: string) => {
+  const base = String(import.meta.env.VITE_API_BASE_URL ?? "").replace(/\/+$/, "");
+  if (!base) return path;
+  return `${base}${path.startsWith("/") ? "" : "/"}${path}`;
+};
+
 const DashboardPage = () => {
   const navigate = useNavigate();
   const [welcomeName, setWelcomeName] = useState<string>("estudante");
@@ -29,10 +35,9 @@ const DashboardPage = () => {
   const [planName, setPlanName] = useState<string | null>(null);
   const [planStatus, setPlanStatus] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [syncing, setSyncing] = useState(false);
 
-  useEffect(() => {
-    let mounted = true;
-    const load = async () => {
+  const load = useCallback(async (mountedRef?: { current: boolean }) => {
       setLoading(true);
       const { data: auth } = await supabase.auth.getUser();
       const uid = auth.user?.id;
@@ -46,7 +51,7 @@ const DashboardPage = () => {
         lessonsTryActive,
         supabase.from("user_activity_progress").select("status,score,created_at").eq("user_id", uid),
       ]);
-      if (!mounted) return;
+      if (mountedRef && !mountedRef.current) return;
       const pr = planRow as UserPlanRow | null;
       setWelcomeName(pr?.name ?? "estudante");
       const planNameFromView = pr?.plan_name ?? null;
@@ -63,7 +68,7 @@ const DashboardPage = () => {
           .order("expires_at", { ascending: false, nullsFirst: false })
           .limit(1)
           .maybeSingle();
-        if (!mounted) return;
+        if (mountedRef && !mountedRef.current) return;
         const row = subRow as SubscriptionWithPlanRow | null;
         setPlanName(row?.plans?.name ?? null);
         setPlanStatus(row?.status ?? null);
@@ -72,7 +77,7 @@ const DashboardPage = () => {
       const lessonsCount = lessonsTry.error
         ? await supabase.from("lessons").select("id", { count: "exact", head: true })
         : lessonsTry;
-      if (!mounted) return;
+      if (mountedRef && !mountedRef.current) return;
       setLessonsTotal((lessonsCount as { count: number | null }).count ?? 0);
 
       const rows = Array.isArray(progressRows) ? progressRows : [];
@@ -109,12 +114,15 @@ const DashboardPage = () => {
       }
       setStreakDays(streak);
       setLoading(false);
-    };
-    load();
-    return () => {
-      mounted = false;
-    };
   }, []);
+
+  useEffect(() => {
+    const mountedRef = { current: true };
+    load(mountedRef).then(() => {});
+    return () => {
+      mountedRef.current = false;
+    };
+  }, [load]);
 
   return (
     <div className="min-h-screen bg-background">
@@ -164,7 +172,37 @@ const DashboardPage = () => {
             ) : planName ? (
               <p className="text-sm text-muted-foreground">{planName}</p>
             ) : (
-              <p className="text-sm text-muted-foreground">Sem plano ativo</p>
+              <div className="space-y-3">
+                <p className="text-sm text-muted-foreground">Sem plano ativo</p>
+                <Button
+                  className="rounded-xl bg-gradient-hero font-bold"
+                  disabled={syncing}
+                  onClick={async () => {
+                    setSyncing(true);
+                    const { data } = await supabase.auth.getSession();
+                    const token = data.session?.access_token;
+                    if (!token) {
+                      setSyncing(false);
+                      navigate("/login");
+                      return;
+                    }
+                    const r = await fetch(buildApiUrl("/api/asaas/sync-latest"), {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+                      body: JSON.stringify({}),
+                    });
+                    const j = await r.json().catch(() => null);
+                    setSyncing(false);
+                    if (!r.ok || !j?.ok) {
+                      alert("Não foi possível atualizar a assinatura.");
+                      return;
+                    }
+                    load().then(() => {});
+                  }}
+                >
+                  Atualizar assinatura
+                </Button>
+              </div>
             )}
             {!loading && planName && planStatus && (
               <p className="text-xs text-muted-foreground mt-1">Status: {planStatus}</p>

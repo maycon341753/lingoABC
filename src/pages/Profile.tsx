@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Navbar from "@/components/landing/Navbar";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/lib/supabase";
@@ -37,11 +37,18 @@ type SubscriptionWithPlanRow = {
   } | null;
 };
 
+const buildApiUrl = (path: string) => {
+  const base = String(import.meta.env.VITE_API_BASE_URL ?? "").replace(/\/+$/, "");
+  if (!base) return path;
+  return `${base}${path.startsWith("/") ? "" : "/"}${path}`;
+};
+
 const ProfilePage = () => {
   const [email, setEmail] = useState<string | null>(null);
   const [profile, setProfile] = useState<ProfileRow | null>(null);
   const [plan, setPlan] = useState<ProfilePlanRow | null>(null);
   const [loading, setLoading] = useState(true);
+  const [syncing, setSyncing] = useState(false);
   const navigate = useNavigate();
   const { signOut } = useAuth();
 
@@ -50,13 +57,10 @@ const ProfilePage = () => {
   const hasActiveSubscription =
     (statusNorm === "active" || statusNorm === "ativa") && expiresAtMs != null && Number.isFinite(expiresAtMs) && expiresAtMs > Date.now();
 
-  useEffect(() => {
-    let mounted = true;
-
-    const load = async () => {
+  const load = useCallback(async (mountedRef?: { current: boolean }) => {
       setLoading(true);
       const { data } = await supabase.auth.getUser();
-      if (!mounted) return;
+      if (mountedRef && !mountedRef.current) return;
 
       if (!data.user) {
         setEmail(null);
@@ -68,14 +72,14 @@ const ProfilePage = () => {
 
       setEmail(data.user.email ?? null);
       const { data: profileData } = await supabase.from("profiles").select("name, cpf, role").eq("id", data.user.id).maybeSingle();
-      if (!mounted) return;
+      if (mountedRef && !mountedRef.current) return;
       setProfile(profileData ?? null);
       const { data: planData, error: planError } = await supabase
         .from("v_user_profile_plan")
         .select("plan_name, plan_code, period_months, price, billing_cycle, subscription_status, started_at, expires_at, value")
         .eq("user_id", data.user.id)
         .maybeSingle();
-      if (!mounted) return;
+      if (mountedRef && !mountedRef.current) return;
       if (!planError && planData) {
         setPlan(planData ?? null);
         setLoading(false);
@@ -89,7 +93,7 @@ const ProfilePage = () => {
         .order("expires_at", { ascending: false, nullsFirst: false })
         .limit(1)
         .maybeSingle();
-      if (!mounted) return;
+      if (mountedRef && !mountedRef.current) return;
       if (subRow) {
         const row = subRow as SubscriptionWithPlanRow;
         const p = row.plans ?? null;
@@ -108,16 +112,18 @@ const ProfilePage = () => {
         setPlan(null);
       }
       setLoading(false);
-    };
+  }, [navigate]);
 
-    load();
-    const { data: subscription } = supabase.auth.onAuthStateChange(() => load());
+  useEffect(() => {
+    const mountedRef = { current: true };
+    load(mountedRef).then(() => {});
+    const { data: subscription } = supabase.auth.onAuthStateChange(() => load(mountedRef));
 
     return () => {
-      mounted = false;
+      mountedRef.current = false;
       subscription.subscription.unsubscribe();
     };
-  }, [navigate]);
+  }, [load]);
 
   return (
     <div className="min-h-screen">
@@ -181,7 +187,36 @@ const ProfilePage = () => {
                   </div>
                 </div>
                 {!hasActiveSubscription && (
-                  <div className="mt-4">
+                  <div className="mt-4 flex flex-wrap gap-3">
+                    <Button
+                      variant="outline"
+                      className="rounded-xl font-bold"
+                      disabled={syncing}
+                      onClick={async () => {
+                        setSyncing(true);
+                        const { data } = await supabase.auth.getSession();
+                        const token = data.session?.access_token;
+                        if (!token) {
+                          setSyncing(false);
+                          navigate("/login");
+                          return;
+                        }
+                        const r = await fetch(buildApiUrl("/api/asaas/sync-latest"), {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+                          body: JSON.stringify({}),
+                        });
+                        const j = await r.json().catch(() => null);
+                        setSyncing(false);
+                        if (!r.ok || !j?.ok) {
+                          alert("Não foi possível atualizar a assinatura.");
+                          return;
+                        }
+                        load().then(() => {});
+                      }}
+                    >
+                      Atualizar assinatura
+                    </Button>
                     <Button className="rounded-xl bg-gradient-hero font-bold" onClick={() => navigate("/planos")}>
                       Assinar / Renovar
                     </Button>

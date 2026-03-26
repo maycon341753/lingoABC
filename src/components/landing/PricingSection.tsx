@@ -83,6 +83,7 @@ const PricingSection = () => {
   const [processing, setProcessing] = useState(false);
   const [pixCode, setPixCode] = useState("");
   const [pixQrImage, setPixQrImage] = useState("");
+  const [pixPaymentId, setPixPaymentId] = useState<string | null>(null);
   const [paymentError, setPaymentError] = useState<string | null>(null);
   const [waitingConfirmation, setWaitingConfirmation] = useState(false);
   const autoPixRequestedRef = useRef(false);
@@ -153,6 +154,7 @@ const PricingSection = () => {
   const generatePayment = useCallback(async (targetMethod: "pix" | "card") => {
     setPaymentError(null);
     setProcessing(true);
+    if (targetMethod === "pix") setPixPaymentId(null);
     const amount = Number(String(selectedPlan?.price ?? "0").replace(/[^\d,]/g, "").replace(",", "."));
     const customerEmail = user?.email ?? undefined;
     const customerName = userLabel ?? customerEmail ?? "Usuário";
@@ -199,8 +201,10 @@ const PricingSection = () => {
       const data = await r.json().catch(() => null);
       if (!r.ok) throw data;
       if (targetMethod === "pix") {
+        const paymentId = typeof data?.paymentId === "string" ? String(data.paymentId) : "";
         const code = String(data?.qrCode?.payload ?? "");
         const encodedImage = String(data?.qrCode?.encodedImage ?? "");
+        if (paymentId) setPixPaymentId(paymentId);
         if (encodedImage) setPixQrImage(encodedImage);
         if (code) setPixCode(code);
         if (!code && !encodedImage) setPaymentError("Não foi possível gerar o PIX. Tente novamente.");
@@ -233,6 +237,7 @@ const PricingSection = () => {
     if (!paymentOpen) {
       autoPixRequestedRef.current = false;
       setWaitingConfirmation(false);
+      setPixPaymentId(null);
       return;
     }
     if (method !== "pix") return;
@@ -248,6 +253,7 @@ const PricingSection = () => {
     if (!paymentOpen) return;
     if (method !== "pix") return;
     if (!user?.id) return;
+    if (!pixPaymentId) return;
     if (!pixCode && !pixQrImage) return;
     if (!waitingConfirmation) return;
 
@@ -255,6 +261,25 @@ const PricingSection = () => {
     const startedAt = Date.now();
 
     const check = async () => {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData.session?.access_token;
+      if (token) {
+        const syncResp = await fetch(buildApiUrl("/api/asaas/sync"), {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ paymentId: pixPaymentId }),
+        });
+        const syncJson = await syncResp.json().catch(() => null);
+        if (!mounted) return;
+        const syncedStatus = String(syncJson?.status ?? "").toLowerCase();
+        if (syncedStatus === "active" || syncedStatus === "ativa") {
+          setWaitingConfirmation(false);
+          setPaymentOpen(false);
+          navigate("/dashboard");
+          return;
+        }
+      }
+
       const { data } = await supabase
         .from("subscriptions")
         .select("status,expires_at")
@@ -288,7 +313,7 @@ const PricingSection = () => {
       mounted = false;
       window.clearInterval(interval);
     };
-  }, [method, navigate, paymentOpen, pixCode, pixQrImage, user?.id, waitingConfirmation]);
+  }, [method, navigate, paymentOpen, pixCode, pixPaymentId, pixQrImage, user?.id, waitingConfirmation]);
 
   return (
     <section className="py-20 px-4 bg-card">
