@@ -55,6 +55,9 @@ const Navbar = () => {
               <Button variant="outline" className="rounded-xl font-bold" onClick={() => navigate("/perfil")}>
                 Perfil
               </Button>
+              <Button variant="outline" className="rounded-xl font-bold" onClick={() => navigate("/usuario/faturas")}>
+                Faturas
+              </Button>
               {isAdmin && (
                 <Button variant="outline" className="rounded-xl font-bold" onClick={() => navigate("/admin")}>
                   Admin
@@ -142,6 +145,16 @@ const Navbar = () => {
                     }}
                   >
                     Perfil
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="rounded-xl font-bold"
+                    onClick={() => {
+                      navigate("/usuario/faturas");
+                      setOpen(false);
+                    }}
+                  >
+                    Faturas
                   </Button>
                   {isAdmin && (
                     <Button

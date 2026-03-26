@@ -16,6 +16,7 @@ import Referral from "./pages/Referral.tsx";
 import Admin from "./pages/Admin.tsx";
 import Profile from "./pages/Profile.tsx";
 import UserPlans from "./pages/UserPlans.tsx";
+import UserInvoices from "./pages/UserInvoices.tsx";
 import NotFound from "./pages/NotFound.tsx";
 
 import { AuthProvider } from "./contexts/AuthContext";
@@ -35,6 +36,7 @@ const App = () => (
           <Route path="/licao" element={<Lesson />} />
           <Route path="/planos" element={<Plans />} />
           <Route path="/usuario/planos" element={<UserPlans />} />
+          <Route path="/usuario/faturas" element={<UserInvoices />} />
           <Route path="/usuario/dashboard" element={<Dashboard />} />
           <Route path="/videos" element={<Videos />} />
           <Route path="/sobre" element={<About />} />
