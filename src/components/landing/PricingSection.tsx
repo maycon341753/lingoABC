@@ -61,6 +61,12 @@ type UiPlan = {
 const formatBrl = (value: number) =>
   new Intl.NumberFormat("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value);
 
+const buildApiUrl = (path: string) => {
+  const base = String(import.meta.env.VITE_API_BASE_URL ?? "").replace(/\/+$/, "");
+  if (!base) return path;
+  return `${base}${path.startsWith("/") ? "" : "/"}${path}`;
+};
+
 const PricingSection = () => {
   const navigate = useNavigate();
   const { user, userLabel } = useAuth();
@@ -185,7 +191,7 @@ const PricingSection = () => {
           };
 
     try {
-      const r = await fetch("/api/asaas/checkout", {
+      const r = await fetch(buildApiUrl("/api/asaas/checkout"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
