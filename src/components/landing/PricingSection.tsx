@@ -302,26 +302,37 @@ const PricingSection = () => {
       if (active) {
         setWaitingConfirmation(false);
         setPaymentOpen(false);
-        navigate("/dashboard");
+        setSuccessOpen(true);
+        window.setTimeout(() => {
+          navigate("/dashboard");
+        }, 1200);
       }
     };
 
-    check().then(() => {});
-    const interval = window.setInterval(() => {
-      if (Date.now() - startedAt > 10 * 60 * 1000) {
-        window.clearInterval(interval);
-        if (mounted) setWaitingConfirmation(false);
+    let timer: number | null = null;
+    const tick = () => {
+      if (!mounted) return;
+      const elapsed = Date.now() - startedAt;
+      const fastPhase = elapsed < 30 * 1000;
+      const midPhase = elapsed >= 30 * 1000 && elapsed < 8 * 60 * 1000;
+      const slowPhase = elapsed >= 8 * 60 * 1000 && elapsed < 10 * 60 * 1000;
+      const finished = elapsed >= 10 * 60 * 1000;
+      if (finished) {
+        if (timer != null) window.clearTimeout(timer);
+        setWaitingConfirmation(false);
         return;
       }
       check().then(() => {});
-    }, 5000);
+      const nextMs = fastPhase ? 1000 : midPhase ? 2000 : slowPhase ? 5000 : 5000;
+      timer = window.setTimeout(tick, nextMs);
+    };
+    tick();
 
     return () => {
       mounted = false;
-      window.clearInterval(interval);
+      if (timer != null) window.clearTimeout(timer);
     };
   }, [method, navigate, paymentOpen, pixCode, pixPaymentId, pixQrImage, user?.id, waitingConfirmation]);
-
   return (
     <section className="py-20 px-4 bg-card">
       <Dialog open={successOpen} onOpenChange={setSuccessOpen}>

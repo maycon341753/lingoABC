@@ -43,6 +43,7 @@ const DashboardPage = () => {
       const uid = auth.user?.id;
       if (!uid) {
         setLoading(false);
+      navigate("/login");
         return;
       }
       const lessonsTryActive = supabase.from("lessons").select("id", { count: "exact", head: true }).eq("active", true);
@@ -114,7 +115,7 @@ const DashboardPage = () => {
       }
       setStreakDays(streak);
       setLoading(false);
-  }, []);
+  }, [navigate]);
 
   useEffect(() => {
     const mountedRef = { current: true };
