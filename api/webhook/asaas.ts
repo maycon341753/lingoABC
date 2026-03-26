@@ -43,7 +43,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const eventRaw = String(payloadObj["event"] ?? "").toLowerCase();
   const paymentStatusRaw = String(paymentObj["status"] ?? "").toLowerCase();
   const value = Number(paymentObj["value"] ?? paymentObj["amount"] ?? 0);
-  const description = String(paymentObj["description"] ?? paymentObj["externalReference"] ?? "Assinatura");
+  const description = String(paymentObj["description"] ?? "Assinatura");
+  const externalReference = typeof paymentObj["externalReference"] === "string" ? String(paymentObj["externalReference"]) : "";
   const receivedDate = String(
     paymentObj["confirmedDate"] ?? paymentObj["paymentDate"] ?? paymentObj["effectiveDate"] ?? new Date().toISOString(),
   );
@@ -55,6 +56,48 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const canceled =
     ["payment_canceled", "payment_refunded", "payment_deleted"].includes(eventRaw) ||
     ["canceled", "refunded", "deleted"].includes(paymentStatusRaw);
+
+  const ext = externalReference.trim();
+  const extLooksLikeUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(ext);
+  if (extLooksLikeUuid) {
+    const userId = ext;
+    const planName = description;
+    const { data: planExact } = await supabase.from("plans").select("id,period_months,price").eq("name", planName).maybeSingle();
+    let plan = planExact;
+    if (!plan) {
+      const { data: planFallback } = await supabase
+        .from("plans")
+        .select("id,period_months,price")
+        .ilike("name", `%${planName}%`)
+        .order("period_months", { ascending: true })
+        .limit(1)
+        .maybeSingle();
+      plan = planFallback;
+    }
+    const periodMonths = Number(plan?.period_months ?? 1);
+    const planId = plan?.id ?? null;
+
+    const start = new Date(receivedDate);
+    const expires = new Date(start);
+    expires.setMonth(expires.getMonth() + (periodMonths > 0 ? periodMonths : 1));
+
+    const status = confirmed ? "active" : canceled ? "inactive" : "pending";
+    const amount = value || Number(plan?.price ?? 0);
+
+    await supabase
+      .from("subscriptions")
+      .upsert({
+        user_id: userId,
+        plan_id: planId,
+        status,
+        value: amount,
+        started_at: start.toISOString(),
+        expires_at: expires.toISOString(),
+      })
+      .select();
+
+    return res.status(200).json({ ok: true, userId, planId, status });
+  }
 
   let customerEmail: string | null = null;
   try {

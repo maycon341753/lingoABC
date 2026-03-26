@@ -156,6 +156,13 @@ const PricingSection = () => {
     setPaymentError(null);
     setProcessing(true);
     if (targetMethod === "pix") setPixPaymentId(null);
+    const { data: sessionData } = await supabase.auth.getSession();
+    const token = sessionData.session?.access_token;
+    if (!token) {
+      setProcessing(false);
+      setPaymentError("Faça login novamente para continuar.");
+      return;
+    }
     const amount = Number(String(selectedPlan?.price ?? "0").replace(/[^\d,]/g, "").replace(",", "."));
     const customerEmail = user?.email ?? undefined;
     const customerName = userLabel ?? customerEmail ?? "Usuário";
@@ -196,7 +203,7 @@ const PricingSection = () => {
     try {
       const r = await fetch(buildApiUrl("/api/asaas/checkout"), {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify(body),
       });
       const data = await r.json().catch(() => null);
@@ -221,6 +228,10 @@ const PricingSection = () => {
       const err = e as
         | { errors?: Array<{ description?: unknown }>; error?: unknown; message?: unknown; raw?: unknown }
         | null;
+      if (err instanceof TypeError) {
+        setPaymentError("Falha de conexão com o servidor. Atualize a página e tente novamente.");
+        return;
+      }
       const msg =
         typeof err?.errors?.[0]?.description === "string"
           ? String(err.errors[0].description)
@@ -284,6 +295,26 @@ const PricingSection = () => {
             navigate("/dashboard");
           }, 1200);
           return;
+        }
+        const elapsedMs = Date.now() - startedAt;
+        if ((syncedStatus !== "active" && syncedStatus !== "ativa") && elapsedMs >= 30 * 1000) {
+          const latestResp = await fetch(buildApiUrl("/api/asaas/sync-latest"), {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+            body: JSON.stringify({}),
+          });
+          const latestJson = await latestResp.json().catch(() => null);
+          if (!mounted) return;
+          const latestStatus = String(latestJson?.status ?? "").toLowerCase();
+          if (latestStatus === "active" || latestStatus === "ativa") {
+            setWaitingConfirmation(false);
+            setPaymentOpen(false);
+            setSuccessOpen(true);
+            window.setTimeout(() => {
+              navigate("/dashboard");
+            }, 1200);
+            return;
+          }
         }
       }
 

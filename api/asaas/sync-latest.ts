@@ -2,7 +2,11 @@ import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { createClient } from "@supabase/supabase-js";
 
 const asaasBaseUrl = (process.env.ASAAS_API_URL || "https://api.asaas.com/v3").replace(/\/+$/, "");
-const allowedOrigins = new Set(["http://localhost:8080", "https://lingoabc.vercel.app"]);
+const isAllowedOrigin = (origin: string) => {
+  if (origin === "http://localhost:8080") return true;
+  if (/^https:\/\/[a-z0-9-]+\.vercel\.app$/i.test(origin)) return true;
+  return false;
+};
 
 const pickFirstHeader = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v);
 const normalizeStatus = (v: unknown) => String(v ?? "").toLowerCase();
@@ -40,7 +44,7 @@ async function fetchJson(url: string, apiKey: string) {
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   const origin = pickFirstHeader(req.headers.origin);
-  if (origin && allowedOrigins.has(origin)) {
+  if (origin && isAllowedOrigin(origin)) {
     res.setHeader("Access-Control-Allow-Origin", origin);
     res.setHeader("Vary", "Origin");
     res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
@@ -160,4 +164,3 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     plan_id: up.data?.[0]?.plan_id ?? planId,
   });
 }
-
