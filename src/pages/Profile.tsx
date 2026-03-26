@@ -188,35 +188,6 @@ const ProfilePage = () => {
                 </div>
                 {!hasActiveSubscription && (
                   <div className="mt-4 flex flex-wrap gap-3">
-                    <Button
-                      variant="outline"
-                      className="rounded-xl font-bold"
-                      disabled={syncing}
-                      onClick={async () => {
-                        setSyncing(true);
-                        const { data } = await supabase.auth.getSession();
-                        const token = data.session?.access_token;
-                        if (!token) {
-                          setSyncing(false);
-                          navigate("/login");
-                          return;
-                        }
-                        const r = await fetch(buildApiUrl("/api/asaas/sync-latest"), {
-                          method: "POST",
-                          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-                          body: JSON.stringify({}),
-                        });
-                        const j = await r.json().catch(() => null);
-                        setSyncing(false);
-                        if (!r.ok || !j?.ok) {
-                          alert("Não foi possível atualizar a assinatura.");
-                          return;
-                        }
-                        load().then(() => {});
-                      }}
-                    >
-                      Atualizar assinatura
-                    </Button>
                     <Button className="rounded-xl bg-gradient-hero font-bold" onClick={() => navigate("/planos")}>
                       Assinar / Renovar
                     </Button>

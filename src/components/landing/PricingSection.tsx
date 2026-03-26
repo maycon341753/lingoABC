@@ -87,6 +87,7 @@ const PricingSection = () => {
   const [paymentError, setPaymentError] = useState<string | null>(null);
   const [waitingConfirmation, setWaitingConfirmation] = useState(false);
   const autoPixRequestedRef = useRef(false);
+  const [successOpen, setSuccessOpen] = useState(false);
 
   const loadPlans = useCallback(async () => {
     const { data, error } = await supabase
@@ -211,7 +212,10 @@ const PricingSection = () => {
         setWaitingConfirmation(Boolean(code || encodedImage));
       } else {
         setPaymentOpen(false);
-        navigate("/dashboard");
+        setSuccessOpen(true);
+        window.setTimeout(() => {
+          navigate("/dashboard");
+        }, 1200);
       }
     } catch (e: unknown) {
       const err = e as
@@ -275,7 +279,10 @@ const PricingSection = () => {
         if (syncedStatus === "active" || syncedStatus === "ativa") {
           setWaitingConfirmation(false);
           setPaymentOpen(false);
-          navigate("/dashboard");
+          setSuccessOpen(true);
+          window.setTimeout(() => {
+            navigate("/dashboard");
+          }, 1200);
           return;
         }
       }
@@ -317,6 +324,27 @@ const PricingSection = () => {
 
   return (
     <section className="py-20 px-4 bg-card">
+      <Dialog open={successOpen} onOpenChange={setSuccessOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Pagamento confirmado 🎉</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">Sua assinatura foi ativada. Vamos te levar ao painel.</p>
+          <DialogFooter className="sm:justify-end">
+            <Button
+              className="bg-gradient-hero rounded-xl font-bold"
+              type="button"
+              onClick={() => {
+                setSuccessOpen(false);
+                navigate("/dashboard");
+              }}
+            >
+              Ir para o painel
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <Dialog open={paymentOpen} onOpenChange={setPaymentOpen}>
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>

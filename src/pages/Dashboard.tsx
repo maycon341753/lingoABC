@@ -172,37 +172,7 @@ const DashboardPage = () => {
             ) : planName ? (
               <p className="text-sm text-muted-foreground">{planName}</p>
             ) : (
-              <div className="space-y-3">
-                <p className="text-sm text-muted-foreground">Sem plano ativo</p>
-                <Button
-                  className="rounded-xl bg-gradient-hero font-bold"
-                  disabled={syncing}
-                  onClick={async () => {
-                    setSyncing(true);
-                    const { data } = await supabase.auth.getSession();
-                    const token = data.session?.access_token;
-                    if (!token) {
-                      setSyncing(false);
-                      navigate("/login");
-                      return;
-                    }
-                    const r = await fetch(buildApiUrl("/api/asaas/sync-latest"), {
-                      method: "POST",
-                      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-                      body: JSON.stringify({}),
-                    });
-                    const j = await r.json().catch(() => null);
-                    setSyncing(false);
-                    if (!r.ok || !j?.ok) {
-                      alert("Não foi possível atualizar a assinatura.");
-                      return;
-                    }
-                    load().then(() => {});
-                  }}
-                >
-                  Atualizar assinatura
-                </Button>
-              </div>
+              <p className="text-sm text-muted-foreground">Sem plano ativo</p>
             )}
             {!loading && planName && planStatus && (
               <p className="text-xs text-muted-foreground mt-1">Status: {planStatus}</p>
