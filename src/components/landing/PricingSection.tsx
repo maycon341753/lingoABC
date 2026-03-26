@@ -1,7 +1,12 @@
 import { motion } from "framer-motion";
-import { Check, Sparkles } from "lucide-react";
+import { Check, Sparkles, QrCode, CreditCard } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
+import { useState } from "react";
 
 const plans = [
   {
@@ -39,9 +44,193 @@ const benefits = [
 
 const PricingSection = () => {
   const navigate = useNavigate();
+  const { userLabel } = useAuth();
+  const [paymentOpen, setPaymentOpen] = useState(false);
+  const [selectedPlan, setSelectedPlan] = useState<{ name: string; price: string } | null>(null);
+  const [method, setMethod] = useState<"pix" | "card">("pix");
+  const [cardName, setCardName] = useState("");
+  const [cardNumber, setCardNumber] = useState("");
+  const [cardExpiry, setCardExpiry] = useState("");
+  const [cardCvv, setCardCvv] = useState("");
+  const [installments, setInstallments] = useState(1);
+  const [processing, setProcessing] = useState(false);
+  const [pixCode, setPixCode] = useState("");
 
   return (
     <section className="py-20 px-4 bg-card">
+      <Dialog open={paymentOpen} onOpenChange={setPaymentOpen}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>
+              {selectedPlan ? `Assinar ${selectedPlan.name} — R$ ${selectedPlan.price}` : "Assinatura"}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <button
+                className={`flex items-center gap-2 rounded-xl border px-4 py-3 font-bold ${
+                  method === "pix" ? "bg-muted" : "bg-background"
+                }`}
+                onClick={() => setMethod("pix")}
+              >
+                <QrCode className="w-4 h-4" /> PIX
+              </button>
+              <button
+                className={`flex items-center gap-2 rounded-xl border px-4 py-3 font-bold ${
+                  method === "card" ? "bg-muted" : "bg-background"
+                }`}
+                onClick={() => setMethod("card")}
+              >
+                <CreditCard className="w-4 h-4" /> Cartão de crédito
+              </button>
+            </div>
+
+            {method === "pix" ? (
+              <div className="grid gap-3">
+                <p className="text-sm text-muted-foreground">
+                  Escaneie o QR Code no app do seu banco ou copie o código abaixo.
+                </p>
+                <div className="rounded-2xl border bg-background p-4 text-center">
+                  <div className="inline-block bg-muted rounded-xl px-6 py-10">
+                    <QrCode className="w-16 h-16" />
+                  </div>
+                </div>
+                <div className="grid gap-2">
+                  <Label>Código PIX</Label>
+                  <Input
+                    readOnly
+                    className="rounded-xl font-mono text-sm"
+                    value={pixCode || `PIX:${selectedPlan?.name ?? "Plano"}:${selectedPlan?.price ?? ""}:LINGOABC`}
+                  />
+                </div>
+              </div>
+            ) : (
+              <div className="grid gap-3">
+                <div className="grid gap-2">
+                  <Label>Nome impresso no cartão</Label>
+                  <Input className="rounded-xl" value={cardName} onChange={(e) => setCardName(e.target.value)} />
+                </div>
+                <div className="grid gap-2">
+                  <Label>Número do cartão</Label>
+                  <Input
+                    className="rounded-xl"
+                    inputMode="numeric"
+                    maxLength={19}
+                    placeholder="0000 0000 0000 0000"
+                    value={cardNumber}
+                    onChange={(e) => {
+                      const digits = e.target.value.replace(/\D/g, "").slice(0, 16);
+                      const masked = digits.replace(/(\d{4})(?=\d)/g, "$1 ");
+                      setCardNumber(masked);
+                    }}
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="grid gap-2">
+                    <Label>Validade (MM/AA)</Label>
+                    <Input
+                      className="rounded-xl"
+                      inputMode="numeric"
+                      maxLength={5}
+                      placeholder="MM/AA"
+                      value={cardExpiry}
+                      onChange={(e) => {
+                        const digits = e.target.value.replace(/\D/g, "").slice(0, 4);
+                        const masked = digits.length >= 3 ? `${digits.slice(0, 2)}/${digits.slice(2)}` : digits;
+                        setCardExpiry(masked);
+                      }}
+                    />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label>CVV</Label>
+                    <Input
+                      className="rounded-xl"
+                      inputMode="numeric"
+                      maxLength={4}
+                      value={cardCvv}
+                      onChange={(e) => setCardCvv(e.target.value.replace(/\D/g, "").slice(0, 4))}
+                    />
+                  </div>
+                </div>
+                <div className="grid gap-2">
+                  <Label>Parcelas</Label>
+                  <select
+                    className="flex h-10 w-full rounded-xl border border-input bg-background px-3 py-2 text-sm"
+                    value={String(installments)}
+                    onChange={(e) => setInstallments(Number(e.target.value))}
+                  >
+                    <option value="1">1x (à vista)</option>
+                    <option value="2">2x</option>
+                  </select>
+                </div>
+              </div>
+            )}
+          </div>
+          <DialogFooter className="sm:justify-end">
+            <Button variant="outline" className="rounded-xl" type="button" onClick={() => setPaymentOpen(false)} disabled={processing}>
+              Cancelar
+            </Button>
+            <Button
+              className="bg-gradient-hero rounded-xl font-bold"
+              type="button"
+              disabled={processing}
+              onClick={() => {
+                setProcessing(true);
+                const amount = Number(String(selectedPlan?.price ?? "0").replace(/[^\d,]/g, "").replace(",", "."));
+                const nameOrEmail = userLabel ?? "Usuário";
+                const body =
+                  method === "pix"
+                    ? {
+                        method: "pix",
+                        amount,
+                        description: selectedPlan?.name ?? "Plano",
+                        customerName: nameOrEmail,
+                        customerEmail: nameOrEmail.includes("@") ? nameOrEmail : undefined,
+                      }
+                    : {
+                        method: "card",
+                        amount,
+                        description: selectedPlan?.name ?? "Plano",
+                        customerName: nameOrEmail,
+                        customerEmail: nameOrEmail.includes("@") ? nameOrEmail : undefined,
+                        installments,
+                        card: {
+                          holderName: cardName,
+                          number: cardNumber.replace(/\s/g, ""),
+                          expiryMonth: cardExpiry.slice(0, 2),
+                          expiryYear: cardExpiry.slice(-2),
+                          ccv: cardCvv,
+                        },
+                      };
+                fetch("/api/asaas/checkout", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify(body),
+                })
+                  .then((r) => r.json())
+                  .then((data) => {
+                    if (method === "pix") {
+                      const code =
+                        data?.payload ||
+                        data?.qrCode?.payload ||
+                        data?.qrCode?.encodedImage ||
+                        data?.qrCode ||
+                        "";
+                      setPixCode(String(code));
+                    } else {
+                      setPaymentOpen(false);
+                      navigate("/dashboard");
+                    }
+                  })
+                  .finally(() => setProcessing(false));
+              }}
+            >
+              Pagar agora
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <div className="container mx-auto max-w-5xl">
         <motion.div
           className="text-center mb-14"
@@ -104,7 +293,15 @@ const PricingSection = () => {
                     ? "bg-card text-foreground hover:bg-card/90"
                     : "bg-gradient-hero text-primary-foreground"
                 }`}
-                onClick={() => navigate("/cadastro")}
+                onClick={() => {
+                  if (!userLabel) {
+                    navigate("/cadastro");
+                    return;
+                  }
+                  setSelectedPlan({ name: plan.name, price: plan.price });
+                  setMethod("pix");
+                  setPaymentOpen(true);
+                }}
               >
                 Assinar agora
               </Button>
