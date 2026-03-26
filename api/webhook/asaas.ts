@@ -6,14 +6,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const secret = process.env.ASSAS_WEBHOOK_SECRET;
   if (!secret) return res.status(500).send("Missing ASSAS_WEBHOOK_SECRET");
 
-  const tokenHeader =
-    (req.headers["x-webhook-token"] as string) ||
-    (req.headers["x-asaas-token"] as string) ||
-    (req.headers["authorization"] as string)?.replace(/^Bearer\s+/i, "");
+  const headerToken =
+    req.headers["asaas-access-token"] ||
+    req.headers["x-webhook-token"] ||
+    req.headers["x-asaas-token"] ||
+    req.headers["authorization"];
+  const tokenHeader = Array.isArray(headerToken) ? headerToken[0] : headerToken;
+  const tokenFromHeader =
+    typeof tokenHeader === "string" ? tokenHeader.replace(/^Bearer\s+/i, "").trim() : "";
   const tokenQuery = (req.query.token as string) || (req.query.auth as string);
-  const token = tokenHeader || tokenQuery;
+  const token = tokenFromHeader || String(tokenQuery || "").trim();
+  const expected = String(secret).trim();
 
-  if (!token || token !== secret) return res.status(401).send("Invalid token");
+  if (!token || token !== expected) return res.status(401).send("Invalid token");
 
   const apiKey = process.env.ASSAS_API_KEY;
   const supaUrl = process.env.SUPABASE_URL;
@@ -49,8 +54,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(200).json({ ok: true, info: "no_email", paymentId });
   }
 
-  const { data: userRow } = await supabase.from("auth.users").select("id").eq("email", customerEmail).maybeSingle();
-  const userId = userRow?.id ?? null;
+  const { data: userRow } = await supabase.from("v_admin_users").select("user_id").eq("email", customerEmail).maybeSingle();
+  const userId = userRow?.user_id ?? null;
   if (!userId) return res.status(200).json({ ok: true, info: "no_user", email: customerEmail });
 
   const planName = description;

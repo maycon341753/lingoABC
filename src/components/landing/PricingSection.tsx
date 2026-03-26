@@ -44,7 +44,7 @@ const benefits = [
 
 const PricingSection = () => {
   const navigate = useNavigate();
-  const { userLabel } = useAuth();
+  const { user, userLabel } = useAuth();
   const [paymentOpen, setPaymentOpen] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState<{ name: string; price: string } | null>(null);
   const [method, setMethod] = useState<"pix" | "card">("pix");
@@ -55,6 +55,8 @@ const PricingSection = () => {
   const [installments, setInstallments] = useState(1);
   const [processing, setProcessing] = useState(false);
   const [pixCode, setPixCode] = useState("");
+  const [pixQrImage, setPixQrImage] = useState("");
+  const [paymentError, setPaymentError] = useState<string | null>(null);
 
   return (
     <section className="py-20 px-4 bg-card">
@@ -91,9 +93,17 @@ const PricingSection = () => {
                   Escaneie o QR Code no app do seu banco ou copie o código abaixo.
                 </p>
                 <div className="rounded-2xl border bg-background p-4 text-center">
-                  <div className="inline-block bg-muted rounded-xl px-6 py-10">
-                    <QrCode className="w-16 h-16" />
-                  </div>
+                  {pixQrImage ? (
+                    <img
+                      className="mx-auto w-48 h-48 object-contain"
+                      src={pixQrImage.startsWith("data:") ? pixQrImage : `data:image/png;base64,${pixQrImage}`}
+                      alt="QR Code PIX"
+                    />
+                  ) : (
+                    <div className="inline-block bg-muted rounded-xl px-6 py-10">
+                      <QrCode className="w-16 h-16" />
+                    </div>
+                  )}
                 </div>
                 <div className="grid gap-2">
                   <Label>Código PIX</Label>
@@ -103,6 +113,7 @@ const PricingSection = () => {
                     value={pixCode || `PIX:${selectedPlan?.name ?? "Plano"}:${selectedPlan?.price ?? ""}:LINGOABC`}
                   />
                 </div>
+                {paymentError && <p className="text-sm font-bold text-destructive">{paymentError}</p>}
               </div>
             ) : (
               <div className="grid gap-3">
@@ -175,24 +186,26 @@ const PricingSection = () => {
               type="button"
               disabled={processing}
               onClick={() => {
+                setPaymentError(null);
                 setProcessing(true);
                 const amount = Number(String(selectedPlan?.price ?? "0").replace(/[^\d,]/g, "").replace(",", "."));
-                const nameOrEmail = userLabel ?? "Usuário";
+                const customerEmail = user?.email ?? undefined;
+                const customerName = userLabel ?? customerEmail ?? "Usuário";
                 const body =
                   method === "pix"
                     ? {
                         method: "pix",
                         amount,
                         description: selectedPlan?.name ?? "Plano",
-                        customerName: nameOrEmail,
-                        customerEmail: nameOrEmail.includes("@") ? nameOrEmail : undefined,
+                        customerName,
+                        customerEmail,
                       }
                     : {
                         method: "card",
                         amount,
                         description: selectedPlan?.name ?? "Plano",
-                        customerName: nameOrEmail,
-                        customerEmail: nameOrEmail.includes("@") ? nameOrEmail : undefined,
+                        customerName,
+                        customerEmail,
                         installments,
                         card: {
                           holderName: cardName,
@@ -207,20 +220,26 @@ const PricingSection = () => {
                   headers: { "Content-Type": "application/json" },
                   body: JSON.stringify(body),
                 })
-                  .then((r) => r.json())
+                  .then(async (r) => {
+                    const data = await r.json().catch(() => null);
+                    if (!r.ok) throw data;
+                    return data;
+                  })
                   .then((data) => {
                     if (method === "pix") {
-                      const code =
-                        data?.payload ||
-                        data?.qrCode?.payload ||
-                        data?.qrCode?.encodedImage ||
-                        data?.qrCode ||
-                        "";
-                      setPixCode(String(code));
+                      const code = String(data?.qrCode?.payload ?? "");
+                      const encodedImage = String(data?.qrCode?.encodedImage ?? "");
+                      if (encodedImage) setPixQrImage(encodedImage);
+                      if (code) setPixCode(code);
+                      if (!code && !encodedImage) setPaymentError("Não foi possível gerar o PIX. Tente novamente.");
                     } else {
                       setPaymentOpen(false);
                       navigate("/dashboard");
                     }
+                  })
+                  .catch((e) => {
+                    const msg = typeof e?.errors?.[0]?.description === "string" ? e.errors[0].description : null;
+                    setPaymentError(msg || "Falha ao gerar pagamento. Verifique as variáveis no Vercel e tente novamente.");
                   })
                   .finally(() => setProcessing(false));
               }}
@@ -300,6 +319,9 @@ const PricingSection = () => {
                   }
                   setSelectedPlan({ name: plan.name, price: plan.price });
                   setMethod("pix");
+                  setPixCode("");
+                  setPixQrImage("");
+                  setPaymentError(null);
                   setPaymentOpen(true);
                 }}
               >
