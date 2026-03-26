@@ -29,7 +29,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== "POST") return res.status(405).send("Method Not Allowed");
   const apiKeyRaw = process.env.ASSAS_API_KEY;
   if (!apiKeyRaw) return res.status(500).send("Missing ASSAS_API_KEY");
-  const apiKey = String(apiKeyRaw).replace(/^\$/, "").trim();
+  const apiKey = String(apiKeyRaw).trim();
 
   const { method, amount, description, customerName, customerEmail, customerCpfCnpj, installments, card } = req.body as {
     method: "pix" | "card";
