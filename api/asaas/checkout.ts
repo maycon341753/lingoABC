@@ -180,14 +180,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (!holderAddress || !holderAddrNo || !holderProvince) return res.status(400).json({ error: "missing_card_holder_address" });
     if (holderPhone.length < 10) return res.status(400).json({ error: "missing_card_holder_phone" });
 
-    const payment = await fetchAsaas(`/payments`, "POST", apiKey, {
+    const count = Math.max(1, Number(installments || 1));
+    const totalValue = Number(amount || 0);
+    const payload: Record<string, unknown> = {
       customer: customerId,
       billingType: "CREDIT_CARD",
-      value: Number(amount || 0),
+      value: totalValue,
       dueDate,
       description: description || "Assinatura",
       externalReference: userId,
-      installmentCount: Number(installments || 1),
       creditCard: {
         holderName: String(card?.holderName ?? holderName),
         number: cardNumber,
@@ -205,7 +206,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         province: holderProvince,
         phone: holderPhone,
       },
-    });
+    };
+    if (count > 1) {
+      payload.installmentCount = count;
+      payload.installmentValue = Number((totalValue / count).toFixed(2));
+    }
+    const payment = await fetchAsaas(`/payments`, "POST", apiKey, payload);
     return res.status(200).json(payment);
   } catch (e: unknown) {
     const err = e as { status?: unknown; data?: unknown } | null;
