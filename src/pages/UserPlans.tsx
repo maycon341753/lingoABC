@@ -272,7 +272,7 @@ const UserPlansPage = () => {
           customerName,
           customerEmail,
           customerCpfCnpj,
-          installments,
+          installments: Math.max(1, Math.min(2, installments)),
           card: {
             holderName: cardHolder,
             number: cardNumber.replace(/\s+/g, ""),
@@ -372,10 +372,11 @@ const UserPlansPage = () => {
     if (!selectedPlan) return;
     if (processing) return;
     if (pixPaymentId) return;
+    if (payMethod !== "pix") return;
     if (autoRequestedRef.current) return;
     autoRequestedRef.current = true;
     createPix();
-  }, [createPix, modalOpen, pixPaymentId, processing, selectedPlan]);
+  }, [createPix, modalOpen, payMethod, pixPaymentId, processing, selectedPlan]);
 
   useEffect(() => {
     if (!modalOpen) return;
@@ -444,10 +445,31 @@ const UserPlansPage = () => {
 
           <div className="grid gap-4">
             <div className="flex gap-2">
-              <Button type="button" variant={payMethod === "pix" ? "default" : "outline"} className="rounded-xl font-bold" onClick={() => setPayMethod("pix")} disabled={processing || waitingConfirmation}>
+              <Button
+                type="button"
+                variant={payMethod === "pix" ? "default" : "outline"}
+                className="rounded-xl font-bold"
+                onClick={() => {
+                  setPayMethod("pix");
+                }}
+                disabled={processing}
+              >
                 PIX
               </Button>
-              <Button type="button" variant={payMethod === "card" ? "default" : "outline"} className="rounded-xl font-bold" onClick={() => setPayMethod("card")} disabled={processing || waitingConfirmation}>
+              <Button
+                type="button"
+                variant={payMethod === "card" ? "default" : "outline"}
+                className="rounded-xl font-bold"
+                onClick={() => {
+                  setPayMethod("card");
+                  setWaitingConfirmation(false);
+                  setPixPaymentId(null);
+                  setPixCode("");
+                  setPixQrImage("");
+                  autoRequestedRef.current = false;
+                }}
+                disabled={processing}
+              >
                 Cartão
               </Button>
             </div>
@@ -508,7 +530,7 @@ const UserPlansPage = () => {
                 </div>
                 <div className="grid gap-2">
                   <Label>Parcelas</Label>
-                  <Input className="rounded-xl" value={String(installments)} onChange={(e) => setInstallments(Math.max(1, Math.min(12, Number(e.target.value || "1"))))} />
+                  <Input className="rounded-xl" value={String(installments)} onChange={(e) => setInstallments(Math.max(1, Math.min(2, Number(e.target.value || "1"))))} />
                 </div>
               </>
             )}
