@@ -45,6 +45,17 @@ const buildApiUrl = (path: string) => {
 const formatBrl = (value: number) =>
   new Intl.NumberFormat("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value);
 
+const extractApiError = (j: unknown, fallback: string) => {
+  const rec = j as Record<string, unknown> | null;
+  const direct = typeof rec?.error === "string" ? String(rec.error) : "";
+  if (direct) return direct;
+  const errors = Array.isArray(rec?.errors) ? (rec?.errors as unknown[]) : [];
+  const desc = errors
+    .map((e) => (e && typeof e === "object" ? String((e as Record<string, unknown>).description ?? "") : ""))
+    .filter(Boolean)[0];
+  return desc || fallback;
+};
+
 const fmtDate = (iso: string | null) => {
   if (!iso) return "—";
   const d = new Date(iso);
@@ -88,6 +99,11 @@ const UserPlansPage = () => {
   const [cardYear, setCardYear] = useState("");
   const [cardCcv, setCardCcv] = useState("");
   const [installments, setInstallments] = useState<number>(1);
+  const [holderPostalCode, setHolderPostalCode] = useState("");
+  const [holderAddress, setHolderAddress] = useState("");
+  const [holderAddressNumber, setHolderAddressNumber] = useState("");
+  const [holderProvince, setHolderProvince] = useState("");
+  const [holderPhone, setHolderPhone] = useState("");
 
   const autoRequestedRef = useRef(false);
 
@@ -155,6 +171,11 @@ const UserPlansPage = () => {
     setCardYear("");
     setCardCcv("");
     setInstallments(1);
+    setHolderPostalCode("");
+    setHolderAddress("");
+    setHolderAddressNumber("");
+    setHolderProvince("");
+    setHolderPhone("");
   };
 
   const createPix = useCallback(async () => {
@@ -260,6 +281,9 @@ const UserPlansPage = () => {
     const customerName = userLabel ?? customerEmail ?? "Usuário";
     let customerCpfCnpj: string | undefined = undefined;
     if (cpfDigits.length === 11) customerCpfCnpj = cpfDigits;
+    const postalCode = holderPostalCode.replace(/\D/g, "").slice(0, 8);
+    const phone = holderPhone.replace(/\D/g, "").slice(0, 11);
+    const addressNumber = holderAddressNumber.replace(/\D/g, "").slice(0, 10);
 
     try {
       const r = await fetch(buildApiUrl("/api/asaas/checkout"), {
@@ -280,11 +304,21 @@ const UserPlansPage = () => {
             expiryYear: cardYear,
             ccv: cardCcv,
           },
+          holderInfo: {
+            name: cardHolder || customerName,
+            email: customerEmail,
+            cpfCnpj: customerCpfCnpj,
+            postalCode,
+            address: holderAddress,
+            addressNumber,
+            province: holderProvince,
+            phone,
+          },
         }),
       });
       const j = await r.json().catch(() => null);
       if (!r.ok) {
-        const msg = typeof j?.error === "string" ? String(j.error) : `http_${r.status}`;
+        const msg = extractApiError(j, `http_${r.status}`);
         setPaymentError(msg);
         return;
       }
@@ -326,7 +360,7 @@ const UserPlansPage = () => {
     } finally {
       setProcessing(false);
     }
-  }, [cardHolder, cardNumber, cardMonth, cardYear, cardCcv, cpfDigits, installments, loadPage, processing, selectedPlan, user?.email, user?.id, userLabel]);
+  }, [cardHolder, cardCcv, cardMonth, cardNumber, cardYear, cpfDigits, holderAddress, holderAddressNumber, holderPhone, holderPostalCode, holderProvince, installments, loadPage, processing, selectedPlan, user?.email, user?.id, userLabel]);
 
   const syncNow = useCallback(async () => {
     if (!user?.id || !pixPaymentId) return;
@@ -528,6 +562,30 @@ const UserPlansPage = () => {
                     <Input className="rounded-xl" value={cardCcv} onChange={(e) => setCardCcv(e.target.value.replace(/\D/g, "").slice(0, 4))} placeholder="123" />
                   </div>
                 </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="grid gap-2">
+                    <Label>CEP</Label>
+                    <Input className="rounded-xl" value={holderPostalCode} onChange={(e) => setHolderPostalCode(e.target.value.replace(/\D/g, "").slice(0, 8))} placeholder="00000000" />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label>Telefone</Label>
+                    <Input className="rounded-xl" value={holderPhone} onChange={(e) => setHolderPhone(e.target.value.replace(/\D/g, "").slice(0, 11))} placeholder="11999999999" />
+                  </div>
+                </div>
+                <div className="grid gap-2">
+                  <Label>Endereço</Label>
+                  <Input className="rounded-xl" value={holderAddress} onChange={(e) => setHolderAddress(e.target.value)} placeholder="Rua / Av." />
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="grid gap-2">
+                    <Label>Número</Label>
+                    <Input className="rounded-xl" value={holderAddressNumber} onChange={(e) => setHolderAddressNumber(e.target.value.replace(/\D/g, "").slice(0, 10))} placeholder="123" />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label>Bairro</Label>
+                    <Input className="rounded-xl" value={holderProvince} onChange={(e) => setHolderProvince(e.target.value)} placeholder="Centro" />
+                  </div>
+                </div>
                 <div className="grid gap-2">
                   <Label>Parcelas</Label>
                   <Input className="rounded-xl" value={String(installments)} onChange={(e) => setInstallments(Math.max(1, Math.min(2, Number(e.target.value || "1"))))} />
@@ -563,7 +621,20 @@ const UserPlansPage = () => {
               <Button
                 className="bg-gradient-hero rounded-xl font-bold"
                 type="button"
-                disabled={processing || waitingConfirmation}
+                disabled={
+                  processing ||
+                  waitingConfirmation ||
+                  !cardHolder.trim() ||
+                  cardNumber.replace(/\D/g, "").length < 13 ||
+                  cardMonth.replace(/\D/g, "").length < 2 ||
+                  cardYear.replace(/\D/g, "").length < 2 ||
+                  cardCcv.replace(/\D/g, "").length < 3 ||
+                  holderPostalCode.replace(/\D/g, "").length !== 8 ||
+                  !holderAddress.trim() ||
+                  !holderAddressNumber.replace(/\D/g, "").trim() ||
+                  !holderProvince.trim() ||
+                  holderPhone.replace(/\D/g, "").length < 10
+                }
                 onClick={() => {
                   payCard();
                 }}

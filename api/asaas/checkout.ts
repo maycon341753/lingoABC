@@ -26,6 +26,19 @@ const decodeJwtPayload = (token: string) => {
 const isUuid = (v: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(v);
 const isRecord = (v: unknown): v is Record<string, unknown> => typeof v === "object" && v !== null;
 const readString = (v: unknown) => (typeof v === "string" ? v : null);
+const onlyDigits = (v: string) => v.replace(/\D/g, "");
+const normalizeExpiryMonth = (m: string) => {
+  const mm = onlyDigits(m).slice(0, 2);
+  const n = Number(mm || "0");
+  if (!Number.isFinite(n) || n < 1 || n > 12) return null;
+  return String(n).padStart(2, "0");
+};
+const normalizeExpiryYear = (y: string) => {
+  const yy = onlyDigits(y);
+  if (yy.length === 2) return `20${yy}`;
+  if (yy.length === 4) return yy;
+  return null;
+};
 
 async function fetchAsaas(path: string, method: string, apiKey: string, body?: unknown) {
   const res = await fetch(`${baseUrl}${path}`, {
@@ -76,7 +89,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const tokenEmail = typeof payload?.email === "string" ? String(payload.email) : undefined;
   if (!userId) return res.status(401).json({ error: "invalid_user_token" });
 
-  const { method, amount, description, customerName, customerEmail, customerCpfCnpj, installments, card } = req.body as {
+  const { method, amount, description, customerName, customerEmail, customerCpfCnpj, installments, card, holderInfo } = req.body as {
     method: "pix" | "card";
     amount: number;
     description: string;
@@ -90,6 +103,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       expiryMonth: string;
       expiryYear: string;
       ccv: string;
+    };
+    holderInfo?: {
+      name?: string;
+      email?: string;
+      cpfCnpj?: string;
+      postalCode?: string;
+      address?: string;
+      addressNumber?: string;
+      province?: string;
+      phone?: string;
     };
   };
 
@@ -134,6 +157,29 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(200).json({ paymentId, qrCode });
     }
 
+    const holder = isRecord(holderInfo) ? holderInfo : null;
+    const holderName = typeof holder?.name === "string" ? holder.name : customerName;
+    const holderEmail = typeof holder?.email === "string" ? holder.email : customerEmailFinal;
+    const holderCpf = typeof holder?.cpfCnpj === "string" ? holder.cpfCnpj : customerCpfCnpj;
+    const holderPostal = typeof holder?.postalCode === "string" ? onlyDigits(holder.postalCode).slice(0, 8) : "";
+    const holderAddress = typeof holder?.address === "string" ? holder.address : "";
+    const holderAddrNo = typeof holder?.addressNumber === "string" ? onlyDigits(holder.addressNumber).slice(0, 10) : "";
+    const holderProvince = typeof holder?.province === "string" ? holder.province : "";
+    const holderPhone = typeof holder?.phone === "string" ? onlyDigits(holder.phone).slice(0, 11) : "";
+
+    const month = normalizeExpiryMonth(String(card?.expiryMonth ?? ""));
+    const year = normalizeExpiryYear(String(card?.expiryYear ?? ""));
+    const cardNumber = onlyDigits(String(card?.number ?? ""));
+    const ccv = onlyDigits(String(card?.ccv ?? "")).slice(0, 4);
+
+    if (!month || !year) return res.status(400).json({ error: "invalid_card_expiry" });
+    if (cardNumber.length < 13) return res.status(400).json({ error: "invalid_card_number" });
+    if (ccv.length < 3) return res.status(400).json({ error: "invalid_card_ccv" });
+    if (!holderName || !holderEmail || !holderCpf) return res.status(400).json({ error: "missing_card_holder_identity" });
+    if (holderPostal.length !== 8) return res.status(400).json({ error: "missing_card_holder_postal_code" });
+    if (!holderAddress || !holderAddrNo || !holderProvince) return res.status(400).json({ error: "missing_card_holder_address" });
+    if (holderPhone.length < 10) return res.status(400).json({ error: "missing_card_holder_phone" });
+
     const payment = await fetchAsaas(`/payments`, "POST", apiKey, {
       customer: customerId,
       billingType: "CREDIT_CARD",
@@ -143,11 +189,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       externalReference: userId,
       installmentCount: Number(installments || 1),
       creditCard: {
-        holderName: card?.holderName,
-        number: card?.number,
-        expiryMonth: card?.expiryMonth,
-        expiryYear: card?.expiryYear,
-        ccv: card?.ccv,
+        holderName: String(card?.holderName ?? holderName),
+        number: cardNumber,
+        expiryMonth: month,
+        expiryYear: year,
+        ccv,
+      },
+      creditCardHolderInfo: {
+        name: holderName,
+        email: holderEmail,
+        cpfCnpj: holderCpf,
+        postalCode: holderPostal,
+        address: holderAddress,
+        addressNumber: holderAddrNo,
+        province: holderProvince,
+        phone: holderPhone,
       },
     });
     return res.status(200).json(payment);
