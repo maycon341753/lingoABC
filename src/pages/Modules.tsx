@@ -141,14 +141,7 @@ const ModulesPage = () => {
   const [completedModules, setCompletedModules] = useState<boolean[]>([]);
   const [subActive, setSubActive] = useState<boolean | null>(null);
   const [moduleProgressCount, setModuleProgressCount] = useState<Record<string, number>>({});
-  const reduceMotion = useMemo(() => {
-    if (typeof window === "undefined") return true;
-    try {
-      return window.matchMedia("(prefers-reduced-motion: reduce)").matches || window.innerWidth < 640;
-    } catch {
-      return true;
-    }
-  }, []);
+  const reduceMotion = true;
   const navigate = useNavigate();
   const { subject: subjectParam } = useParams();
   const { loading, user, hasSubscription } = useAuth();
