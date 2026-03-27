@@ -199,92 +199,21 @@ const UserPlansPage = () => {
       setPixQrImage(encodedImage);
       setWaitingConfirmation(true);
 
-      const nowIso = new Date().toISOString();
-      const months = Math.max(1, Number(selectedPlan.period_months ?? 1));
-      const expires = new Date();
-      expires.setMonth(expires.getMonth() + months);
-      const subPayload = {
-        user_id: user.id,
-        plan_id: selectedPlan.id,
-        status: "pending",
-        value,
-        started_at: nowIso,
-        expires_at: expires.toISOString(),
-      };
-
-      let linked = false;
       try {
-        const { error: payErr } = await supabase
-          .from("asaas_payments")
-          .upsert(
-            {
-              user_id: user.id,
-              payment_id: paymentId,
-              cpf_cnpj: cpfDigits.length === 11 ? cpfDigits : null,
-              description: selectedPlan.name,
-              billing_type: "PIX",
-              status: "PENDING",
-              value,
-              date_created: nowIso,
-            },
-            { onConflict: "payment_id" },
-          )
-          .select("payment_id");
-        if (payErr) {
-          const { error: payErr2 } = await supabase
-            .from("asaas_payments")
-            .upsert(
-              {
-                user_id: user.id,
-                payment_id: paymentId,
-                description: selectedPlan.name,
-                billing_type: "PIX",
-                status: "PENDING",
-                value,
-                date_created: nowIso,
-              },
-              { onConflict: "payment_id" },
-            )
-            .select("payment_id");
-          if (payErr2) throw payErr2;
+        const lr = await fetch(buildApiUrl("/api/asaas/link"), {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ paymentId, description: selectedPlan.name, value, billingType: "PIX", cpfCnpj: customerCpfCnpj }),
+        });
+        if (!lr.ok) {
+          const lj = await lr.json().catch(() => null);
+          const msg = typeof lj?.error === "string" ? String(lj.error) : `http_${lr.status}`;
+          setPaymentError(msg);
+          return;
         }
-
-        const { data: existingSub, error: existingErr } = await supabase
-          .from("subscriptions")
-          .select("id")
-          .eq("user_id", user.id)
-          .order("expires_at", { ascending: false, nullsFirst: false })
-          .limit(1)
-          .maybeSingle();
-        if (existingErr) throw existingErr;
-
-        if (existingSub && typeof existingSub.id === "string") {
-          const { error: updErr } = await supabase.from("subscriptions").update(subPayload).eq("id", existingSub.id).select("status");
-          if (updErr) throw updErr;
-        } else {
-          const { error: insErr } = await supabase.from("subscriptions").insert(subPayload).select("status");
-          if (insErr) throw insErr;
-        }
-        linked = true;
       } catch {
-        linked = false;
-      }
-
-      if (!linked) {
-        try {
-          const lr = await fetch(buildApiUrl("/api/asaas/link"), {
-            method: "POST",
-            headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-            body: JSON.stringify({ paymentId, description: selectedPlan.name, value, billingType: "PIX", cpfCnpj: customerCpfCnpj }),
-          });
-          if (!lr.ok) {
-            const lj = await lr.json().catch(() => null);
-            const msg = typeof lj?.error === "string" ? String(lj.error) : `http_${lr.status}`;
-            setLinkWarning(msg);
-          }
-        } catch {
-          setLinkWarning("Falha de conexão ao vincular no servidor.");
-        }
+        setPaymentError("Falha de conexão ao vincular o pagamento. Tente novamente.");
+        return;
       }
 
       loadPage().then(() => {});
@@ -323,7 +252,17 @@ const UserPlansPage = () => {
         return;
       }
       const msg = typeof j?.error === "string" ? String(j.error) : `http_${r.status}`;
-      setPaymentError(msg === "forbidden_payment_owner" ? "Este pagamento não pertence a este usuário." : msg);
+      if (msg === "forbidden_payment_owner") {
+        setPaymentError("Este pagamento não pertence a este usuário.");
+        return;
+      }
+      if (manual) {
+        if (msg === "asaas_unreachable") {
+          setPaymentError("Não consegui consultar o Asaas agora. Aguarde a confirmação automática.");
+          return;
+        }
+        setPaymentError(msg === "pending" || st === "pending" ? "Pagamento ainda não confirmado. Aguarde mais alguns instantes." : msg);
+      }
     } catch {
       if (manual) setPaymentError("Falha de conexão com o servidor.");
     } finally {

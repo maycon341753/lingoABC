@@ -65,9 +65,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const userId = userIdRaw && isUuid(userIdRaw) ? userIdRaw : "";
   if (!userId) return res.status(401).json({ error: "invalid_user_token" });
 
-  const paymentResp = await fetch(`${asaasBaseUrl}/payments/${encodeURIComponent(paymentId)}`, {
-    headers: { "User-Agent": "lingoabc", access_token: apiKey },
-  });
+  let paymentResp: Response;
+  try {
+    paymentResp = await fetch(`${asaasBaseUrl}/payments/${encodeURIComponent(paymentId)}`, {
+      headers: { "User-Agent": "lingoabc", access_token: apiKey },
+    });
+  } catch {
+    return res.status(200).json({ ok: false, error: "asaas_unreachable", status: "pending" });
+  }
   const paymentText = await paymentResp.text();
   let paymentJson: unknown = null;
   try {

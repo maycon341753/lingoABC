@@ -46,15 +46,19 @@ const decodeJwtPayload = (token: string) => {
 const isUuid = (v: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(v);
 
 async function fetchJson(url: string, apiKey: string) {
-  const r = await fetch(url, { headers: { "User-Agent": "lingoabc", access_token: apiKey } });
-  const text = await r.text();
-  let json: unknown = null;
   try {
-    json = JSON.parse(text);
+    const r = await fetch(url, { headers: { "User-Agent": "lingoabc", access_token: apiKey } });
+    const text = await r.text();
+    let json: unknown = null;
+    try {
+      json = JSON.parse(text);
+    } catch {
+      json = { raw: text };
+    }
+    return { ok: r.ok, status: r.status, json };
   } catch {
-    json = { raw: text };
+    return { ok: false, status: 200, json: { ok: false, error: "asaas_unreachable", status: "pending" } };
   }
-  return { ok: r.ok, status: r.status, json };
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
