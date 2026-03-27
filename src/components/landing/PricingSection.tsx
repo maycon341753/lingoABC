@@ -91,6 +91,7 @@ const PricingSection = () => {
   const [paymentError, setPaymentError] = useState<string | null>(null);
   const [waitingConfirmation, setWaitingConfirmation] = useState(false);
   const autoPixRequestedRef = useRef(false);
+  const syncFailCountRef = useRef(0);
   const [successOpen, setSuccessOpen] = useState(false);
 
   const loadPlans = useCallback(async () => {
@@ -293,9 +294,51 @@ const PricingSection = () => {
     }
   }, [cardCvv, cardExpiry, cardName, cardNumber, installments, navigate, selectedPlan?.name, selectedPlan?.price, user, userLabel]);
 
+  const syncNow = useCallback(async () => {
+    setPaymentError(null);
+    if (!user?.id || !pixPaymentId) return;
+    setProcessing(true);
+    try {
+      let token = (await supabase.auth.getSession()).data.session?.access_token;
+      if (!token) token = (await supabase.auth.refreshSession()).data.session?.access_token;
+      if (!token) {
+        setPaymentError("Faça login novamente para continuar.");
+        return;
+      }
+      const r = await fetch(buildApiUrl("/api/asaas/sync"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ paymentId: pixPaymentId }),
+      });
+      const j = await r.json().catch(() => null);
+      const st = String(j?.status ?? "").toLowerCase();
+      if (r.ok && (st === "active" || st === "ativa")) {
+        setWaitingConfirmation(false);
+        setPaymentOpen(false);
+        setSuccessOpen(true);
+        window.setTimeout(() => {
+          navigate("/usuario/dashboard");
+        }, 1200);
+        return;
+      }
+      if (!r.ok) {
+        const msg =
+          typeof j?.error === "string" ? String(j.error) : typeof j?.message === "string" ? String(j.message) : `http_${r.status}`;
+        setPaymentError(msg);
+        return;
+      }
+      setPaymentError("Pagamento ainda não confirmado. Aguarde mais alguns instantes.");
+    } catch {
+      setPaymentError("Falha de conexão com o servidor. Tente novamente.");
+    } finally {
+      setProcessing(false);
+    }
+  }, [navigate, pixPaymentId, user?.id]);
+
   useEffect(() => {
     if (!paymentOpen) {
       autoPixRequestedRef.current = false;
+      syncFailCountRef.current = 0;
       setWaitingConfirmation(false);
       setPixPaymentId(null);
       return;
@@ -327,6 +370,27 @@ const PricingSection = () => {
       }
       if (token) {
         try {
+          try {
+            const { data: pRow } = await supabase
+              .from("asaas_payments")
+              .select("status,confirmed_date,payment_date,date_created")
+              .eq("payment_id", pixPaymentId)
+              .limit(1)
+              .maybeSingle();
+            if (!mounted) return;
+            const st = String((pRow as { status?: string | null } | null)?.status ?? "").toLowerCase();
+            const asaasConfirmed = ["received", "confirmed", "received_in_cash"].includes(st);
+            if (asaasConfirmed) {
+              await fetch(buildApiUrl("/api/asaas/sync"), {
+                method: "POST",
+                headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+                body: JSON.stringify({ paymentId: pixPaymentId }),
+              }).catch(() => null);
+            }
+          } catch {
+            void 0;
+          }
+
           const syncResp = await fetch(buildApiUrl("/api/asaas/sync"), {
             method: "POST",
             headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
@@ -346,7 +410,13 @@ const PricingSection = () => {
               setPaymentError("Este pagamento não pertence a este usuário.");
               return;
             }
+            syncFailCountRef.current += 1;
+            if (syncFailCountRef.current >= 3) {
+              setPaymentError(errMsg);
+              return;
+            }
           } else {
+            syncFailCountRef.current = 0;
             const syncedStatus = String(syncJson?.status ?? "").toLowerCase();
             if (syncedStatus === "active" || syncedStatus === "ativa") {
               setWaitingConfirmation(false);
@@ -379,7 +449,13 @@ const PricingSection = () => {
                   setPaymentError("Este pagamento não pertence a este usuário.");
                   return;
                 }
+                syncFailCountRef.current += 1;
+                if (syncFailCountRef.current >= 3) {
+                  setPaymentError(errMsg);
+                  return;
+                }
               } else {
+                syncFailCountRef.current = 0;
                 const latestStatus = String(latestJson?.status ?? "").toLowerCase();
                 if (latestStatus === "active" || latestStatus === "ativa") {
                   setWaitingConfirmation(false);
@@ -523,7 +599,8 @@ const PricingSection = () => {
                   <Input
                     readOnly
                     className="rounded-xl font-mono text-sm"
-                    value={pixCode || `PIX:${selectedPlan?.name ?? "Plano"}:${selectedPlan?.price ?? ""}:LINGOABC`}
+                    placeholder={`PIX:${selectedPlan?.name ?? "Plano"}:${selectedPlan?.price ?? ""}:LINGOABC`}
+                    value={pixCode}
                   />
                 </div>
                 {paymentError && <p className="text-sm font-bold text-destructive">{paymentError}</p>}
@@ -597,15 +674,20 @@ const PricingSection = () => {
             <Button variant="outline" className="rounded-xl" type="button" onClick={() => setPaymentOpen(false)} disabled={processing}>
               Cancelar
             </Button>
+            {method === "pix" && waitingConfirmation && pixPaymentId && (
+              <Button variant="outline" className="rounded-xl font-bold" type="button" onClick={syncNow} disabled={processing}>
+                Já paguei
+              </Button>
+            )}
             <Button
               className="bg-gradient-hero rounded-xl font-bold"
               type="button"
-              disabled={processing}
+              disabled={processing || (method === "pix" && waitingConfirmation)}
               onClick={() => {
                 generatePayment(method);
               }}
             >
-              {method === "pix" ? "Gerar PIX" : "Pagar agora"}
+              {method === "pix" ? (waitingConfirmation ? "Aguardando…" : "Gerar PIX") : "Pagar agora"}
             </Button>
           </DialogFooter>
         </DialogContent>
