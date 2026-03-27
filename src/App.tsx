@@ -18,6 +18,7 @@ import Profile from "./pages/Profile.tsx";
 import UserPlans from "./pages/UserPlans.tsx";
 import UserInvoices from "./pages/UserInvoices.tsx";
 import NotFound from "./pages/NotFound.tsx";
+import ReferralTracker from "./components/ReferralTracker.tsx";
 
 import { AuthProvider } from "./contexts/AuthContext";
 
@@ -30,6 +31,7 @@ const App = () => (
         <Toaster />
         <Sonner />
         <BrowserRouter>
+        <ReferralTracker />
         <Routes>
           <Route path="/" element={<Index />} />
           <Route path="/modulos" element={<Modules />} />

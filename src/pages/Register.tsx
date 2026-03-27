@@ -108,6 +108,16 @@ const RegisterPage = () => {
                 alert(profileError.message);
                 return;
               }
+              try {
+                const refCode = String(window.localStorage.getItem("referral:code") ?? "").trim();
+                if (refCode) {
+                  await supabase.rpc("referral_register_signup", { p_code: refCode });
+                  window.localStorage.removeItem("referral:code");
+                  window.localStorage.removeItem("referral:ts");
+                }
+              } catch {
+                void 0;
+              }
               if (!data.session) {
                 setSuccessMessage("Conta criada! Se o e-mail estiver com confirmação ativa, verifique sua caixa de entrada e depois faça login.");
               } else {

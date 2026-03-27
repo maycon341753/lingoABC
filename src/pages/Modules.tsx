@@ -6,7 +6,6 @@ import Footer from "@/components/landing/Footer";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/lib/supabase";
-import { Lock } from "lucide-react";
 
 const subjects = [
   { id: "math", name: "Matemática", icon: Calculator, color: "bg-secondary" },
