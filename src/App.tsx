@@ -6,6 +6,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import ReferralTracker from "./components/ReferralTracker.tsx";
 import AnalyticsTracker from "./components/AnalyticsTracker.tsx";
+import RequireAuth from "./components/RequireAuth.tsx";
 
 import { AuthProvider } from "./contexts/AuthContext";
 
@@ -59,7 +60,14 @@ const App = () => (
             <Route path="/cadastro" element={<Register />} />
             <Route path="/usuario/planos" element={<UserPlans />} />
             <Route path="/usuario/faturas" element={<UserInvoices />} />
-            <Route path="/usuario/dashboard" element={<Dashboard />} />
+            <Route
+              path="/usuario/dashboard"
+              element={
+                <RequireAuth>
+                  <Dashboard />
+                </RequireAuth>
+              }
+            />
             <Route path="/dashboard" element={<Navigate to="/usuario/dashboard" replace />} />
             <Route path="/indicacao" element={<Referral />} />
             <Route path="/admin/*" element={<Admin />} />

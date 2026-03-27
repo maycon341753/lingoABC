@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import mascot from "@/assets/mascot-owl.png";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
@@ -31,7 +31,11 @@ const LoginPage = () => {
   const successRedirectedRef = useRef(false);
   const { signOut } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const isMobile = typeof navigator !== "undefined" && /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+  const rawNext = String(searchParams.get("next") ?? "");
+  const safeNext =
+    rawNext.startsWith("/") && !rawNext.startsWith("//") && !rawNext.toLowerCase().startsWith("/\\") ? rawNext : "/usuario/dashboard";
 
   useEffect(() => {
     let mounted = true;
@@ -132,7 +136,7 @@ const LoginPage = () => {
               <Button
                 type="button"
                 className="rounded-xl"
-                onClick={() => navigate(loggedUserIsAdmin ? "/admin" : "/usuario/dashboard")}
+                onClick={() => navigate(loggedUserIsAdmin ? "/admin" : safeNext)}
               >
                 {loggedUserIsAdmin ? "Ir ao admin" : "Ir ao painel"}
               </Button>
@@ -184,9 +188,9 @@ const LoginPage = () => {
             setIsSubmitting(false);
             successRedirectedRef.current = false;
             setSuccessName(identified);
-            setSuccessTarget(isAdmin ? "/admin" : "/usuario/dashboard");
+            setSuccessTarget(isAdmin ? "/admin" : safeNext);
             if (isMobile) {
-              navigate(isAdmin ? "/admin" : "/usuario/dashboard");
+              navigate(isAdmin ? "/admin" : safeNext);
             } else {
               setSuccessOpen(true);
               window.setTimeout(() => {

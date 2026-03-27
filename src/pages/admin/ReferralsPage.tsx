@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
+import { useAuth } from "@/contexts/AuthContext";
 
 type ReferralStatRow = {
   id: string;
@@ -37,6 +38,7 @@ const ReferralsPage = () => {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editCode, setEditCode] = useState("");
   const [editPercent, setEditPercent] = useState(20);
+  const { isSuperAdmin } = useAuth();
 
   const loadRows = async () => {
     setLoading(true);
@@ -106,6 +108,8 @@ const ReferralsPage = () => {
                 inputMode="numeric"
                 value={String(editPercent)}
                 onChange={(e) => setEditPercent(Math.max(0, Math.min(100, Number(e.target.value || "0"))))}
+                disabled={!isSuperAdmin}
+                readOnly={!isSuperAdmin}
               />
             </div>
           </div>
@@ -117,10 +121,12 @@ const ReferralsPage = () => {
               className="bg-gradient-hero rounded-xl font-bold"
               type="button"
               onClick={async () => {
-                const payload = { code: editCode || "", commission_percent: Number(editPercent || 0) };
+                const base = { code: editCode || "" };
+                const payload = isSuperAdmin ? { ...base, commission_percent: Number(editPercent || 0) } : base;
+                const insertPayload = isSuperAdmin ? payload : { ...base, commission_percent: 20 };
                 const resp = editingId
                   ? await supabase.from("referral_links").update(payload).eq("id", editingId)
-                  : await supabase.from("referral_links").insert(payload);
+                  : await supabase.from("referral_links").insert(insertPayload);
                 if (resp.error) {
                   alert(resp.error.message);
                   return;

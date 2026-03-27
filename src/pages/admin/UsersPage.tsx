@@ -5,6 +5,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/lib/supabase";
+import { useAuth } from "@/contexts/AuthContext";
 
 const formatCpf = (value: string) => {
   const digits = value.replace(/\D/g, "").slice(0, 11);
@@ -34,6 +35,18 @@ type UserRow = {
   subscription_status: string | null;
 };
 
+type PlanRow = {
+  id: string;
+  name: string | null;
+};
+
+type SubscriptionEditRow = {
+  id: string;
+  plan_id: string | null;
+  status: string | null;
+  expires_at: string | null;
+};
+
 const UsersPage = () => {
   const [usersData, setUsersData] = useState<UserRow[]>([]);
   const [userDialogOpen, setUserDialogOpen] = useState(false);
@@ -42,7 +55,13 @@ const UsersPage = () => {
   const [userEmail, setUserEmail] = useState("");
   const [userCpf, setUserCpf] = useState("");
   const [userRole, setUserRole] = useState("user");
-  const [userPlan, setUserPlan] = useState("—");
+  const [userPlanId, setUserPlanId] = useState<string>("");
+  const [userPlanName, setUserPlanName] = useState("—");
+  const [userStatus, setUserStatus] = useState<string>("—");
+  const [subRowId, setSubRowId] = useState<string | null>(null);
+  const [subExpiresAt, setSubExpiresAt] = useState<string | null>(null);
+  const [plans, setPlans] = useState<PlanRow[]>([]);
+  const { isSuperAdmin } = useAuth();
 
   useEffect(() => {
     let mounted = true;
@@ -66,6 +85,20 @@ const UsersPage = () => {
       mounted = false;
     };
   }, []);
+
+  useEffect(() => {
+    if (!isSuperAdmin) return;
+    let mounted = true;
+    const load = async () => {
+      const { data } = await supabase.from("plans").select("id,name").order("period_months", { ascending: true });
+      if (!mounted) return;
+      setPlans(((data ?? []) as PlanRow[]) ?? []);
+    };
+    load();
+    return () => {
+      mounted = false;
+    };
+  }, [isSuperAdmin]);
 
   return (
     <div>
@@ -95,6 +128,8 @@ const UsersPage = () => {
                   onChange={(e) => setUserCpf(e.target.value.replace(/\D/g, "").slice(0, 11))}
                   inputMode="numeric"
                   maxLength={14}
+                  readOnly
+                  disabled
                 />
               </div>
               <div className="grid gap-2">
@@ -117,20 +152,47 @@ const UsersPage = () => {
                 <select
                   id="userPlan"
                   className="flex h-10 w-full rounded-xl border border-input bg-background px-3 py-2 text-sm"
-                  value={userPlan}
-                  onChange={(e) => setUserPlan(e.target.value)}
-                  disabled
+                  value={userPlanId || ""}
+                  onChange={(e) => {
+                    const nextId = e.target.value;
+                    setUserPlanId(nextId);
+                    const nextName = plans.find((p) => p.id === nextId)?.name ?? "—";
+                    setUserPlanName(nextName || "—");
+                  }}
+                  disabled={!isSuperAdmin}
                 >
-                  <option value={userPlan}>{userPlan}</option>
+                  {!isSuperAdmin ? (
+                    <option value="">{userPlanName}</option>
+                  ) : (
+                    <>
+                      <option value="">Selecione…</option>
+                      {plans.map((p) => (
+                        <option key={p.id} value={p.id}>
+                          {p.name ?? p.id}
+                        </option>
+                      ))}
+                    </>
+                  )}
                 </select>
               </div>
               <div className="grid gap-2">
                 <Label>Status</Label>
-                <Input
-                  className="rounded-xl"
-                  value={(usersData.find((u) => u.id === editingUserId)?.subscription_status ?? "—") || "—"}
-                  readOnly
-                />
+                {!isSuperAdmin ? (
+                  <Input className="rounded-xl" value={userStatus || "—"} readOnly />
+                ) : (
+                  <select
+                    className="flex h-10 w-full rounded-xl border border-input bg-background px-3 py-2 text-sm"
+                    value={userStatus}
+                    onChange={(e) => setUserStatus(e.target.value)}
+                  >
+                    <option value="—">—</option>
+                    <option value="active">active</option>
+                    <option value="inactive">inactive</option>
+                    <option value="canceled">canceled</option>
+                    <option value="expired">expired</option>
+                    <option value="trial">trial</option>
+                  </select>
+                )}
               </div>
             </div>
           </div>
@@ -148,13 +210,63 @@ const UsersPage = () => {
                 }
                 const upd = await supabase
                   .from("profiles")
-                  .update({ name: userName || null, cpf: userCpf || null, role: userRole || null })
+                  .update({ name: userName || null, role: userRole || null })
                   .eq("id", editingUserId);
                 if (upd.error) {
                   alert(upd.error.message);
                   return;
                 }
+
+                if (isSuperAdmin) {
+                  const nextStatus = (userStatus || "—").trim();
+                  const nextPlanId = userPlanId || null;
+                  if (nextStatus !== "—" || nextPlanId) {
+                    const nowIso = new Date().toISOString();
+                    const nextExpiresAt = nextStatus === "active" ? null : nowIso;
+                    if (subRowId) {
+                      const subUpd = await supabase
+                        .from("subscriptions")
+                        .update({
+                          plan_id: nextPlanId,
+                          status: nextStatus === "—" ? null : nextStatus,
+                          expires_at: nextStatus === "—" ? subExpiresAt : nextExpiresAt,
+                        })
+                        .eq("id", subRowId);
+                      if (subUpd.error) {
+                        alert(subUpd.error.message);
+                        return;
+                      }
+                    } else {
+                      const subIns = await supabase.from("subscriptions").insert({
+                        user_id: editingUserId,
+                        plan_id: nextPlanId,
+                        status: nextStatus === "—" ? null : nextStatus,
+                        started_at: nowIso,
+                        expires_at: nextStatus === "active" ? null : nowIso,
+                        value: null,
+                      });
+                      if (subIns.error) {
+                        alert(subIns.error.message);
+                        return;
+                      }
+                    }
+                  }
+                }
+
                 setUsersData((prev) => prev.map((u) => (u.id === editingUserId ? { ...u, name: userName, cpf: userCpf, role: userRole } : u)));
+                if (isSuperAdmin) {
+                  setUsersData((prev) =>
+                    prev.map((u) =>
+                      u.id === editingUserId
+                        ? {
+                            ...u,
+                            plan: userPlanName || u.plan,
+                            subscription_status: userStatus === "—" ? null : userStatus,
+                          }
+                        : u,
+                    ),
+                  );
+                }
                 setUserDialogOpen(false);
               }}
             >
@@ -183,7 +295,34 @@ const UsersPage = () => {
                 setUserEmail(u.email);
                 setUserCpf((u.cpf ?? "").replace(/\D/g, "").slice(0, 11));
                 setUserRole(u.role ?? "user");
-                setUserPlan(u.plan ?? "—");
+                setUserPlanName(u.plan ?? "—");
+                setUserStatus((u.subscription_status ?? "—") || "—");
+                setUserPlanId("");
+                setSubRowId(null);
+                setSubExpiresAt(null);
+                if (isSuperAdmin) {
+                  supabase
+                    .from("subscriptions")
+                    .select("id,plan_id,status,expires_at")
+                    .eq("user_id", u.id)
+                    .order("expires_at", { ascending: false, nullsFirst: true })
+                    .limit(1)
+                    .maybeSingle()
+                    .then(({ data, error }) => {
+                      if (error) return;
+                      const row = (data ?? null) as SubscriptionEditRow | null;
+                      if (!row) return;
+                      setSubRowId(row.id);
+                      setSubExpiresAt(row.expires_at ?? null);
+                      setUserPlanId(row.plan_id ?? "");
+                      if (row.plan_id) {
+                        const planName = plans.find((p) => p.id === row.plan_id)?.name ?? u.plan ?? "—";
+                        setUserPlanName(planName || "—");
+                      }
+                      const st = (row.status ?? u.subscription_status ?? "—") || "—";
+                      setUserStatus(st);
+                    });
+                }
                 setUserDialogOpen(true);
               }}
             />
