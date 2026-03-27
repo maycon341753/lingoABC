@@ -143,7 +143,55 @@ const ProfilePage = () => {
             value: row.value ?? null,
           });
         } else {
-          setPlan(null);
+          try {
+            let token = (await supabase.auth.getSession()).data.session?.access_token;
+            if (!token) token = (await supabase.auth.refreshSession()).data.session?.access_token;
+            if (token) {
+              const r = await fetch(buildApiUrl("/api/asaas/sync-latest"), {
+                method: "POST",
+                headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+                body: JSON.stringify({}),
+              });
+              const j = await r.json().catch(() => null);
+              if (!mountedRef || mountedRef.current) {
+                const st = String(j?.status ?? "").toLowerCase();
+                if (r.ok && (st === "active" || st === "ativa")) {
+                  const { data: subRow2 } = await supabase
+                    .from("subscriptions")
+                    .select("status,started_at,expires_at,value,plans(code,name,period_months,price,billing_cycle)")
+                    .eq("user_id", uid)
+                    .order("expires_at", { ascending: false, nullsFirst: false })
+                    .limit(1)
+                    .maybeSingle();
+                  if (!mountedRef || mountedRef.current) {
+                    if (subRow2) {
+                      const row = subRow2 as SubscriptionWithPlanRow;
+                      const p = row.plans ?? null;
+                      setPlan({
+                        plan_name: p?.name ?? null,
+                        plan_code: p?.code ?? null,
+                        period_months: p?.period_months ?? null,
+                        price: p?.price ?? null,
+                        billing_cycle: p?.billing_cycle ?? null,
+                        subscription_status: row.status ?? null,
+                        started_at: row.started_at ?? null,
+                        expires_at: row.expires_at ?? null,
+                        value: row.value ?? null,
+                      });
+                    } else {
+                      setPlan(null);
+                    }
+                  }
+                } else {
+                  setPlan(null);
+                }
+              }
+            } else {
+              setPlan(null);
+            }
+          } catch {
+            setPlan(null);
+          }
         }
         setLoading(false);
       } catch (e: unknown) {
