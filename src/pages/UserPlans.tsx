@@ -81,6 +81,13 @@ const UserPlansPage = () => {
   const [pixPaymentId, setPixPaymentId] = useState<string | null>(null);
   const [pixCode, setPixCode] = useState("");
   const [pixQrImage, setPixQrImage] = useState("");
+  const [payMethod, setPayMethod] = useState<"pix" | "card">("pix");
+  const [cardHolder, setCardHolder] = useState("");
+  const [cardNumber, setCardNumber] = useState("");
+  const [cardMonth, setCardMonth] = useState("");
+  const [cardYear, setCardYear] = useState("");
+  const [cardCcv, setCardCcv] = useState("");
+  const [installments, setInstallments] = useState<number>(1);
 
   const autoRequestedRef = useRef(false);
 
@@ -141,6 +148,13 @@ const UserPlansPage = () => {
     setPixPaymentId(null);
     setPixCode("");
     setPixQrImage("");
+    setPayMethod("pix");
+    setCardHolder("");
+    setCardNumber("");
+    setCardMonth("");
+    setCardYear("");
+    setCardCcv("");
+    setInstallments(1);
   };
 
   const createPix = useCallback(async () => {
@@ -223,6 +237,96 @@ const UserPlansPage = () => {
       setProcessing(false);
     }
   }, [cpfDigits, loadPage, processing, selectedPlan, user?.email, user?.id, userLabel]);
+
+  const payCard = useCallback(async () => {
+    if (!user?.id || !selectedPlan) return;
+    if (processing) return;
+    setProcessing(true);
+    setPaymentError(null);
+    setLinkWarning(null);
+    setPixPaymentId(null);
+    setPixCode("");
+    setPixQrImage("");
+
+    const token = await getToken();
+    if (!token) {
+      setProcessing(false);
+      setPaymentError("Faça login novamente para continuar.");
+      return;
+    }
+
+    const value = Number(selectedPlan.price ?? 0);
+    const customerEmail = user.email ?? undefined;
+    const customerName = userLabel ?? customerEmail ?? "Usuário";
+    let customerCpfCnpj: string | undefined = undefined;
+    if (cpfDigits.length === 11) customerCpfCnpj = cpfDigits;
+
+    try {
+      const r = await fetch(buildApiUrl("/api/asaas/checkout"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          method: "card",
+          amount: value,
+          description: selectedPlan.name,
+          customerName,
+          customerEmail,
+          customerCpfCnpj,
+          installments,
+          card: {
+            holderName: cardHolder,
+            number: cardNumber.replace(/\s+/g, ""),
+            expiryMonth: cardMonth,
+            expiryYear: cardYear,
+            ccv: cardCcv,
+          },
+        }),
+      });
+      const j = await r.json().catch(() => null);
+      if (!r.ok) {
+        const msg = typeof j?.error === "string" ? String(j.error) : `http_${r.status}`;
+        setPaymentError(msg);
+        return;
+      }
+      const paymentId = typeof j?.id === "string" ? String(j.id) : typeof j?.paymentId === "string" ? String(j.paymentId) : "";
+      const invoiceUrl = typeof j?.invoiceUrl === "string" ? String(j.invoiceUrl) : null;
+      if (!paymentId) {
+        setPaymentError("Falha ao processar cartão. Tente novamente.");
+        return;
+      }
+      setPixPaymentId(paymentId);
+      setWaitingConfirmation(true);
+
+      try {
+        const lr = await fetch(buildApiUrl("/api/asaas/link"), {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+          body: JSON.stringify({
+            paymentId,
+            description: selectedPlan.name,
+            value,
+            billingType: "CREDIT_CARD",
+            cpfCnpj: customerCpfCnpj,
+            invoiceUrl,
+          }),
+        });
+        if (!lr.ok) {
+          const lj = await lr.json().catch(() => null);
+          const msg = typeof lj?.error === "string" ? String(lj.error) : `http_${lr.status}`;
+          setPaymentError(msg);
+          return;
+        }
+      } catch {
+        setPaymentError("Falha de conexão ao vincular o pagamento. Tente novamente.");
+        return;
+      }
+      loadPage().then(() => {});
+    } catch (e: unknown) {
+      setPaymentError(e instanceof TypeError ? "Falha de conexão com o servidor." : "Falha ao processar cartão.");
+    } finally {
+      setProcessing(false);
+    }
+  }, [cardHolder, cardNumber, cardMonth, cardYear, cardCcv, cpfDigits, installments, loadPage, processing, selectedPlan, user?.email, user?.id, userLabel]);
 
   const syncNow = useCallback(async () => {
     if (!user?.id || !pixPaymentId) return;
@@ -339,31 +443,75 @@ const UserPlansPage = () => {
           </DialogHeader>
 
           <div className="grid gap-4">
-            <p className="text-sm text-muted-foreground">Escaneie o QR Code no app do seu banco ou copie o código abaixo.</p>
+            <div className="flex gap-2">
+              <Button type="button" variant={payMethod === "pix" ? "default" : "outline"} className="rounded-xl font-bold" onClick={() => setPayMethod("pix")} disabled={processing || waitingConfirmation}>
+                PIX
+              </Button>
+              <Button type="button" variant={payMethod === "card" ? "default" : "outline"} className="rounded-xl font-bold" onClick={() => setPayMethod("card")} disabled={processing || waitingConfirmation}>
+                Cartão
+              </Button>
+            </div>
+            {payMethod === "pix" ? (
+              <p className="text-sm text-muted-foreground">Escaneie o QR Code no app do seu banco ou copie o código abaixo.</p>
+            ) : (
+              <p className="text-sm text-muted-foreground">Preencha os dados do cartão para concluir o pagamento.</p>
+            )}
             {formatCpf(cpfDigits) && (
               <p className="text-sm text-muted-foreground">
                 CPF vinculado: <span className="font-bold">{formatCpf(cpfDigits)}</span>
               </p>
             )}
 
-            <div className="rounded-2xl border bg-background p-4 text-center">
-              {pixQrImage ? (
-                <img
-                  className="mx-auto w-56 h-56 object-contain"
-                  src={pixQrImage.startsWith("data:") ? pixQrImage : `data:image/png;base64,${pixQrImage}`}
-                  alt="QR Code PIX"
-                />
-              ) : (
-                <div className="inline-block bg-muted rounded-xl px-6 py-10">
-                  <QrCode className="w-16 h-16" />
+            {payMethod === "pix" ? (
+              <>
+                <div className="rounded-2xl border bg-background p-4 text-center">
+                  {pixQrImage ? (
+                    <img
+                      className="mx-auto w-56 h-56 object-contain"
+                      src={pixQrImage.startsWith("data:") ? pixQrImage : `data:image/png;base64,${pixQrImage}`}
+                      alt="QR Code PIX"
+                    />
+                  ) : (
+                    <div className="inline-block bg-muted rounded-xl px-6 py-10">
+                      <QrCode className="w-16 h-16" />
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
-
-            <div className="grid gap-2">
-              <Label>Código PIX</Label>
-              <Input readOnly className="rounded-xl font-mono text-sm" placeholder="Gerando..." value={pixCode} />
-            </div>
+                <div className="grid gap-2">
+                  <Label>Código PIX</Label>
+                  <Input readOnly className="rounded-xl font-mono text-sm" placeholder="Gerando..." value={pixCode} />
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="grid gap-2">
+                  <Label>Nome impresso no cartão</Label>
+                  <Input className="rounded-xl" value={cardHolder} onChange={(e) => setCardHolder(e.target.value)} />
+                </div>
+                <div className="grid gap-2">
+                  <Label>Número do cartão</Label>
+                  <Input className="rounded-xl" value={cardNumber} onChange={(e) => setCardNumber(e.target.value.replace(/[^\d\s]/g, ""))} placeholder="0000 0000 0000 0000" />
+                </div>
+                <div className="grid grid-cols-3 gap-2">
+                  <div className="grid gap-2">
+                    <Label>Mês</Label>
+                    <Input className="rounded-xl" value={cardMonth} onChange={(e) => setCardMonth(e.target.value.replace(/\D/g, "").slice(0, 2))} placeholder="MM" />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label>Ano</Label>
+                    <Input className="rounded-xl" value={cardYear} onChange={(e) => setCardYear(e.target.value.replace(/\D/g, "").slice(0, 4))} placeholder="AAAA" />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label>CVV</Label>
+                    <Input className="rounded-xl" value={cardCcv} onChange={(e) => setCardCcv(e.target.value.replace(/\D/g, "").slice(0, 4))} placeholder="123" />
+                  </div>
+                </div>
+                <div className="grid gap-2">
+                  <Label>Parcelas</Label>
+                  <Input className="rounded-xl" value={String(installments)} onChange={(e) => setInstallments(Math.max(1, Math.min(12, Number(e.target.value || "1"))))} />
+                </div>
+              </>
+            )}
 
             {paymentError && <p className="text-sm font-bold text-destructive">{paymentError}</p>}
             {linkWarning && <p className="text-sm font-bold text-muted-foreground">Vínculo: {linkWarning}</p>}
@@ -376,18 +524,31 @@ const UserPlansPage = () => {
             <Button variant="outline" className="rounded-xl" type="button" onClick={() => setModalOpen(false)} disabled={processing}>
               Fechar
             </Button>
-            <Button
-              className="bg-gradient-hero rounded-xl font-bold"
-              type="button"
-              disabled={processing || waitingConfirmation}
-              onClick={() => {
-                resetModal();
-                autoRequestedRef.current = false;
-                createPix();
-              }}
-            >
-              {waitingConfirmation ? "Aguardando…" : "Gerar PIX"}
-            </Button>
+            {payMethod === "pix" ? (
+              <Button
+                className="bg-gradient-hero rounded-xl font-bold"
+                type="button"
+                disabled={processing || waitingConfirmation}
+                onClick={() => {
+                  resetModal();
+                  autoRequestedRef.current = false;
+                  createPix();
+                }}
+              >
+                {waitingConfirmation ? "Aguardando…" : "Gerar PIX"}
+              </Button>
+            ) : (
+              <Button
+                className="bg-gradient-hero rounded-xl font-bold"
+                type="button"
+                disabled={processing || waitingConfirmation}
+                onClick={() => {
+                  payCard();
+                }}
+              >
+                {waitingConfirmation ? "Aguardando…" : "Pagar com cartão"}
+              </Button>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -453,7 +614,7 @@ const UserPlansPage = () => {
                         setModalOpen(true);
                       }}
                     >
-                      Assinar com PIX
+                      Assinar
                     </Button>
                   </div>
                 ))}

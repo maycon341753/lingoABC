@@ -147,10 +147,6 @@ const UserInvoicesPage = () => {
 
           <div className="mt-4 flex flex-wrap gap-4">
             <div className="bg-background rounded-2xl border p-4 min-w-[220px]">
-              <p className="text-xs text-muted-foreground font-bold">Total pago</p>
-              <p className="text-2xl font-extrabold">R$ {formatBrl(totalPaid)}</p>
-            </div>
-            <div className="bg-background rounded-2xl border p-4 min-w-[220px]">
               <p className="text-xs text-muted-foreground font-bold">Transações</p>
               <p className="text-2xl font-extrabold">{items.length}</p>
             </div>
