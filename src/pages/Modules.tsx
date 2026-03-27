@@ -5,6 +5,7 @@ import Navbar from "@/components/landing/Navbar";
 import Footer from "@/components/landing/Footer";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/lib/supabase";
 
 const subjects = [
   { id: "math", name: "Matemática", icon: Calculator, color: "bg-secondary" },
@@ -31,15 +32,60 @@ const ModulesPage = () => {
   const [perfectIds, setPerfectIds] = useState<number[]>([]);
   const [completedIds, setCompletedIds] = useState<number[]>([]);
   const [completedModules, setCompletedModules] = useState<boolean[]>([]);
+  const [subActive, setSubActive] = useState<boolean | null>(null);
   const navigate = useNavigate();
   const { loading, user, hasSubscription } = useAuth();
-  const isFreeUser = !loading && !!user && !hasSubscription;
+  const effectiveHasSubscription = subActive ?? hasSubscription;
+  const isFreeUser = !loading && !!user && !effectiveHasSubscription;
 
   useEffect(() => {
     if (!loading && !user) {
       navigate("/login");
     }
   }, [loading, user, navigate]);
+
+  useEffect(() => {
+    if (!user?.id) return;
+    let mounted = true;
+    const run = async () => {
+      const nowMs = Date.now();
+      let active = false;
+      const planTry = await supabase
+        .from("v_user_profile_plan")
+        .select("subscription_status, expires_at")
+        .eq("user_id", user.id)
+        .maybeSingle();
+      if (!planTry.error && planTry.data) {
+        const status = String((planTry.data as { subscription_status?: string | null } | null)?.subscription_status ?? "")
+          .toLowerCase()
+          .trim();
+        const expiresAtIso = String((planTry.data as { expires_at?: string | null } | null)?.expires_at ?? "");
+        const t = expiresAtIso ? new Date(expiresAtIso).getTime() : NaN;
+        const expiresAtMs = Number.isFinite(t) ? t : null;
+        active = (status === "active" || status === "ativa" || status === "ativo") && (expiresAtMs == null || expiresAtMs > nowMs);
+      }
+      if (!active) {
+        const { data: subRow } = await supabase
+          .from("subscriptions")
+          .select("status, expires_at")
+          .eq("user_id", user.id)
+          .order("expires_at", { ascending: false, nullsFirst: false })
+          .limit(1)
+          .maybeSingle();
+        const row = subRow as { status?: string | null; expires_at?: string | null } | null;
+        const status = String(row?.status ?? "").toLowerCase().trim();
+        const expiresAtIso = String(row?.expires_at ?? "");
+        const t = expiresAtIso ? new Date(expiresAtIso).getTime() : NaN;
+        const expiresAtMs = Number.isFinite(t) ? t : null;
+        active = (status === "active" || status === "ativa" || status === "ativo") && (expiresAtMs == null || expiresAtMs > nowMs);
+      }
+      if (mounted) setSubActive(active);
+    };
+    run();
+    return () => {
+      mounted = false;
+    };
+  }, [user?.id]);
 
   useEffect(() => {
     const moduleName = modules[selectedModule]?.name ?? "Descoberta";
@@ -88,7 +134,6 @@ const ModulesPage = () => {
         return { ...l, completed, locked };
       }
       const completed = completedIds.includes(l.id);
-      // Se tem assinatura ativa (não é free user), libera todas as lições
       const locked = false;
       return { ...l, completed, locked };
     });

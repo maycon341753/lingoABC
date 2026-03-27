@@ -261,6 +261,7 @@ const ImageMatch = ({
 
 const LessonPage = () => {
   const { loading, user, hasSubscription } = useAuth();
+  const [subActive, setSubActive] = useState<boolean | null>(null);
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const materia = (searchParams.get("materia") || "math").toLowerCase();
@@ -268,10 +269,54 @@ const LessonPage = () => {
   const lessonId = Number(searchParams.get("licao") || "1");
 
   useEffect(() => {
-    if (!loading && user && !hasSubscription && lessonId !== 1) {
+    if (!user?.id) return;
+    let mounted = true;
+    const run = async () => {
+      const nowMs = Date.now();
+      let active = false;
+      const planTry = await supabase
+        .from("v_user_profile_plan")
+        .select("subscription_status, expires_at")
+        .eq("user_id", user.id)
+        .maybeSingle();
+      if (!planTry.error && planTry.data) {
+        const status = String((planTry.data as { subscription_status?: string | null } | null)?.subscription_status ?? "")
+          .toLowerCase()
+          .trim();
+        const expiresAtIso = String((planTry.data as { expires_at?: string | null } | null)?.expires_at ?? "");
+        const t = expiresAtIso ? new Date(expiresAtIso).getTime() : NaN;
+        const expiresAtMs = Number.isFinite(t) ? t : null;
+        active = (status === "active" || status === "ativa" || status === "ativo") && (expiresAtMs == null || expiresAtMs > nowMs);
+      }
+      if (!active) {
+        const { data: subRow } = await supabase
+          .from("subscriptions")
+          .select("status, expires_at")
+          .eq("user_id", user.id)
+          .order("expires_at", { ascending: false, nullsFirst: false })
+          .limit(1)
+          .maybeSingle();
+        const row = subRow as { status?: string | null; expires_at?: string | null } | null;
+        const status = String(row?.status ?? "").toLowerCase().trim();
+        const expiresAtIso = String(row?.expires_at ?? "");
+        const t = expiresAtIso ? new Date(expiresAtIso).getTime() : NaN;
+        const expiresAtMs = Number.isFinite(t) ? t : null;
+        active = (status === "active" || status === "ativa" || status === "ativo") && (expiresAtMs == null || expiresAtMs > nowMs);
+      }
+      if (mounted) setSubActive(active);
+    };
+    run();
+    return () => {
+      mounted = false;
+    };
+  }, [user?.id]);
+
+  useEffect(() => {
+    const effectiveHasSubscription = subActive ?? hasSubscription;
+    if (!loading && user && !effectiveHasSubscription && lessonId !== 1) {
       window.location.href = "/planos";
     }
-  }, [hasSubscription, loading, user, lessonId]);
+  }, [hasSubscription, loading, subActive, user, lessonId]);
 
   const questions: Question[] = useMemo(() => {
     if (materia === "math") {

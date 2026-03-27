@@ -90,12 +90,15 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         .maybeSingle();
 
       if (!planTry.error && planTry.data) {
-        const status = String((planTry.data as { subscription_status?: string | null } | null)?.subscription_status ?? "").toLowerCase();
+        const status = String((planTry.data as { subscription_status?: string | null } | null)?.subscription_status ?? "")
+          .toLowerCase()
+          .trim();
         const expiresAtIso = String((planTry.data as { expires_at?: string | null } | null)?.expires_at ?? "");
         const t = expiresAtIso ? new Date(expiresAtIso).getTime() : NaN;
         expiresAtMs = Number.isFinite(t) ? t : null;
-        isActive = (status === "active" || status === "ativa") && expiresAtMs != null && expiresAtMs > nowMs;
-      } else {
+        isActive = (status === "active" || status === "ativa" || status === "ativo") && (expiresAtMs == null || expiresAtMs > nowMs);
+      }
+      if (!isActive) {
         const { data: subRow } = await supabase
           .from("subscriptions")
           .select("status, expires_at")
@@ -104,11 +107,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           .limit(1)
           .maybeSingle();
         const row = subRow as { status?: string | null; expires_at?: string | null } | null;
-        const status = String(row?.status ?? "").toLowerCase();
+        const status = String(row?.status ?? "").toLowerCase().trim();
         const expiresAtIso = String(row?.expires_at ?? "");
         const t = expiresAtIso ? new Date(expiresAtIso).getTime() : NaN;
-        expiresAtMs = Number.isFinite(t) ? t : null;
-        isActive = (status === "active" || status === "ativa") && expiresAtMs != null && expiresAtMs > nowMs;
+        expiresAtMs = Number.isFinite(t) ? t : expiresAtMs;
+        isActive = (status === "active" || status === "ativa" || status === "ativo") && (expiresAtMs == null || expiresAtMs > nowMs);
       }
 
       if (mounted) {
