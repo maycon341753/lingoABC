@@ -37,15 +37,17 @@ const ModulesPage = () => {
   const navigate = useNavigate();
   const { loading, user, hasSubscription } = useAuth();
   const effectiveHasSubscription = subActive ?? hasSubscription;
+  const isSubscriber = !loading && !!user && effectiveHasSubscription;
   const isFreeUser = !loading && !!user && !effectiveHasSubscription;
   const moduleLocks = useMemo(() => {
+    if (isSubscriber) return new Array(modules.length).fill(false);
     return modules.map((_, i) => {
       if (i === 0) return false;
       const prevName = modules[i - 1]?.name ?? "Descoberta";
       const prevCount = Number(moduleProgressCount[prevName] ?? 0);
       return prevCount < 40;
     });
-  }, [moduleProgressCount]);
+  }, [isSubscriber, moduleProgressCount]);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -136,12 +138,16 @@ const ModulesPage = () => {
     if (!user?.id) return;
     let mounted = true;
     const run = async () => {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from("user_module_progress")
         .select("module,subject,completed_lessons,completed")
         .eq("user_id", user.id)
         .eq("subject", selectedSubject);
       if (!mounted) return;
+      if (error) {
+        setModuleProgressCount({});
+        return;
+      }
       const map: Record<string, number> = {};
       for (const r of Array.isArray(data) ? data : []) {
         const name = String((r as { module?: string | null }).module ?? "");
@@ -167,7 +173,7 @@ const ModulesPage = () => {
       const moduleName = modules[selectedModule]?.name ?? "Descoberta";
       const count = Number(moduleProgressCount[moduleName] ?? 0);
       const completed = l.id <= count || completedIds.includes(l.id);
-      const locked = l.id > count + 1;
+      const locked = false;
       return { ...l, completed, locked };
     });
   }, [completedIds, isFreeUser, moduleProgressCount, selectedModule]);

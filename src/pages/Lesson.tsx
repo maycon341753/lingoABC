@@ -262,6 +262,7 @@ const ImageMatch = ({
 const LessonPage = () => {
   const { loading, user, hasSubscription } = useAuth();
   const [subActive, setSubActive] = useState<boolean | null>(null);
+  const [subChecked, setSubChecked] = useState(false);
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const materia = (searchParams.get("materia") || "math").toLowerCase();
@@ -272,6 +273,8 @@ const LessonPage = () => {
     if (!user?.id) return;
     let mounted = true;
     const run = async () => {
+      setSubActive(null);
+      setSubChecked(false);
       const nowMs = Date.now();
       let active = false;
       const planTry = await supabase
@@ -303,7 +306,10 @@ const LessonPage = () => {
         const expiresAtMs = Number.isFinite(t) ? t : null;
         active = (status === "active" || status === "ativa" || status === "ativo") && (expiresAtMs == null || expiresAtMs > nowMs);
       }
-      if (mounted) setSubActive(active);
+      if (mounted) {
+        setSubActive(active);
+        setSubChecked(true);
+      }
     };
     run();
     return () => {
@@ -313,10 +319,15 @@ const LessonPage = () => {
 
   useEffect(() => {
     const effectiveHasSubscription = subActive ?? hasSubscription;
-    if (!loading && user && !effectiveHasSubscription && lessonId !== 1) {
+    if (lessonId === 1) return;
+    if (loading) return;
+    if (!user) return;
+    if (effectiveHasSubscription) return;
+    if (subActive == null && !subChecked) return;
+    if (!effectiveHasSubscription) {
       window.location.href = "/planos";
     }
-  }, [hasSubscription, loading, subActive, user, lessonId]);
+  }, [hasSubscription, loading, subActive, subChecked, user, lessonId]);
 
   const questions: Question[] = useMemo(() => {
     if (materia === "math") {
