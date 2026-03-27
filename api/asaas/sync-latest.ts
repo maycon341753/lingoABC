@@ -147,21 +147,26 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(403).json({ error: "forbidden_payment_owner" });
   }
 
-  const { data: planExact } = await supabaseAdmin
-    .from("plans")
-    .select("id,period_months,price")
-    .eq("name", description)
-    .maybeSingle();
-  let plan = planExact as { id: string; period_months: number | null; price: number | null } | null;
-  if (!plan) {
-    const { data: planFallback } = await supabaseAdmin
+  let plan: { id: string; period_months: number | null; price: number | null } | null = null;
+  try {
+    const { data: planExact } = await supabaseAdmin
       .from("plans")
       .select("id,period_months,price")
-      .ilike("name", `%${description}%`)
-      .order("period_months", { ascending: true })
-      .limit(1)
+      .eq("name", description)
       .maybeSingle();
-    plan = planFallback as { id: string; period_months: number | null; price: number | null } | null;
+    plan = planExact as { id: string; period_months: number | null; price: number | null } | null;
+    if (!plan) {
+      const { data: planFallback } = await supabaseAdmin
+        .from("plans")
+        .select("id,period_months,price")
+        .ilike("name", `%${description}%`)
+        .order("period_months", { ascending: true })
+        .limit(1)
+        .maybeSingle();
+      plan = planFallback as { id: string; period_months: number | null; price: number | null } | null;
+    }
+  } catch {
+    return res.status(200).json({ ok: true, status: "active", db_synced: false, error: "supabase_unreachable" });
   }
 
   const periodMonths = Math.max(1, Number(plan?.period_months ?? 1));
@@ -183,12 +188,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     })
     .select("status,expires_at,plan_id");
 
-  if (up.error) return res.status(400).json({ error: up.error.message });
+  if (up.error) {
+    const msg = String(up.error.message ?? "");
+    if (/fetch failed/i.test(msg)) {
+      return res.status(200).json({ ok: true, status: "active", db_synced: false, error: "supabase_unreachable" });
+    }
+    return res.status(400).json({ error: msg || "upsert_failed" });
+  }
 
   return res.status(200).json({
     ok: true,
     paymentId,
     status: up.data?.[0]?.status ?? "active",
+    db_synced: true,
     expires_at: up.data?.[0]?.expires_at ?? expires.toISOString(),
     plan_id: up.data?.[0]?.plan_id ?? planId,
   });

@@ -121,7 +121,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       plan = planFallback as { id: string; period_months: number | null; price: number | null } | null;
     }
   } catch {
-    return res.status(200).json({ ok: false, error: "supabase_unreachable", status: "pending" });
+    return res.status(200).json({ ok: true, status, db_synced: false, error: "supabase_unreachable" });
   }
 
   const periodMonths = Math.max(1, Number(plan?.period_months ?? 1));
@@ -147,7 +147,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (up.error) {
     const msg = String(up.error.message ?? "");
     if (/fetch failed/i.test(msg)) {
-      return res.status(200).json({ ok: false, error: "supabase_unreachable", status: "pending" });
+      return res.status(200).json({ ok: true, status, db_synced: false, error: "supabase_unreachable" });
     }
     return res.status(400).json({ error: msg || "upsert_failed" });
   }
@@ -156,10 +156,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     ok: true,
     paymentId,
     status,
+    db_synced: true,
     expires_at: up.data?.[0]?.expires_at ?? expires.toISOString(),
     plan_id: up.data?.[0]?.plan_id ?? planId,
   });
   } catch {
-    return res.status(200).json({ ok: false, error: "server_error", status: "pending" });
+    return res.status(200).json({ ok: true, status: "pending", db_synced: false, error: "server_error" });
   }
 }
