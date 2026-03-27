@@ -123,7 +123,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const expires = new Date(start);
     expires.setMonth(expires.getMonth() + (periodMonths > 0 ? periodMonths : 1));
 
-    const status = confirmed ? "active" : canceled ? "inactive" : "pending";
+    const status = confirmed ? "ativa" : canceled ? "cancelada" : "pendente";
     const amount = value || Number(plan?.price ?? 0);
 
     const subPayload = {
@@ -247,7 +247,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const expires = new Date(start);
   expires.setMonth(expires.getMonth() + (periodMonths > 0 ? periodMonths : 1));
 
-  const status = confirmed ? "active" : canceled ? "inactive" : "pending";
+  const status = confirmed ? "ativa" : canceled ? "cancelada" : "pendente";
   const amount = value || Number(plan?.price ?? 0);
 
   const subPayload = {

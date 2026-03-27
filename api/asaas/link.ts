@@ -114,7 +114,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const subPayload = {
     user_id: userId,
     plan_id: planId,
-    status: "pending",
+    status: "pendente",
     value: value || Number(planRow?.price ?? 0),
     started_at: nowIso,
     expires_at: expires.toISOString(),

@@ -224,8 +224,7 @@ const UserPlansPage = () => {
     }
   }, [cpfDigits, loadPage, processing, selectedPlan, user?.email, user?.id, userLabel]);
 
-  const syncNow = useCallback(async (manual?: boolean) => {
-    if (manual) setPaymentError(null);
+  const syncNow = useCallback(async () => {
     if (!user?.id || !pixPaymentId) return;
     setProcessing(true);
     try {
@@ -256,15 +255,9 @@ const UserPlansPage = () => {
         setPaymentError("Este pagamento não pertence a este usuário.");
         return;
       }
-      if (manual) {
-        if (msg === "asaas_unreachable") {
-          setPaymentError("Não consegui consultar o Asaas agora. Aguarde a confirmação automática.");
-          return;
-        }
-        setPaymentError(msg === "pending" || st === "pending" ? "Pagamento ainda não confirmado. Aguarde mais alguns instantes." : msg);
-      }
+      if (msg === "invalid_server_env" || msg === "missing_server_env") setPaymentError(msg);
     } catch {
-      if (manual) setPaymentError("Falha de conexão com o servidor.");
+      void 0;
     } finally {
       setProcessing(false);
     }
@@ -296,7 +289,7 @@ const UserPlansPage = () => {
         setWaitingConfirmation(false);
         return;
       }
-      await syncNow(false);
+      await syncNow();
       if (!mounted) return;
       window.setTimeout(tick, elapsed < 30 * 1000 ? 1500 : 3500);
     };
@@ -383,11 +376,6 @@ const UserPlansPage = () => {
             <Button variant="outline" className="rounded-xl" type="button" onClick={() => setModalOpen(false)} disabled={processing}>
               Fechar
             </Button>
-            {waitingConfirmation && pixPaymentId && (
-              <Button variant="outline" className="rounded-xl font-bold" type="button" onClick={() => syncNow(true)} disabled={processing}>
-                Já paguei
-              </Button>
-            )}
             <Button
               className="bg-gradient-hero rounded-xl font-bold"
               type="button"

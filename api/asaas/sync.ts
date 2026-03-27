@@ -88,7 +88,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       headers: { "User-Agent": "lingoabc", access_token: apiKey },
     });
   } catch {
-    return res.status(200).json({ ok: false, error: "asaas_unreachable", status: "pending" });
+    return res.status(200).json({ ok: false, error: "asaas_unreachable", status: "pendente" });
   }
   const paymentText = await paymentResp.text();
   let paymentJson: unknown = null;
@@ -116,7 +116,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   const confirmed = isConfirmedStatus(statusRaw);
-  const status = confirmed ? "active" : "pending";
+  const status = confirmed ? "ativa" : "pendente";
 
   let plan: { id: string; period_months: number | null; price: number | null } | null = null;
   try {
@@ -189,6 +189,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     plan_id: up.data?.[0]?.plan_id ?? planId,
   });
   } catch {
-    return res.status(200).json({ ok: true, status: "pending", db_synced: false, error: "server_error" });
+    return res.status(200).json({ ok: true, status: "pendente", db_synced: false, error: "server_error" });
   }
 }
