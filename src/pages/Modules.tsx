@@ -88,10 +88,11 @@ const ModulesPage = () => {
         return { ...l, completed, locked };
       }
       const completed = completedIds.includes(l.id);
-      const locked = l.id > 1 && !perfectIds.includes(l.id - 1);
+      // Se tem assinatura ativa (não é free user), libera todas as lições
+      const locked = false;
       return { ...l, completed, locked };
     });
-  }, [completedIds, isFreeUser, perfectIds]);
+  }, [completedIds, isFreeUser]);
 
   return (
     <div className="min-h-screen">
