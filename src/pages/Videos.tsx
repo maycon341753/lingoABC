@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Navbar from "@/components/landing/Navbar";
 import Footer from "@/components/landing/Footer";
 import { supabase } from "@/lib/supabase";
@@ -19,6 +19,11 @@ type MediaRow = {
 const VideosPage = () => {
   const [items, setItems] = useState<MediaRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const ordered = useMemo(() => {
+    const vids = items.filter((i) => !i.is_music);
+    const mus = items.filter((i) => i.is_music);
+    return [...vids, ...mus];
+  }, [items]);
 
   useEffect(() => {
     let mounted = true;
@@ -46,7 +51,7 @@ const VideosPage = () => {
           <p className="text-center text-muted-foreground font-bold">Nenhum conteúdo disponível</p>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {items.map((it) => {
+            {ordered.map((it) => {
               const { data: pub } = supabase.storage.from(it.bucket).getPublicUrl(it.object_name);
               const url = pub.publicUrl;
               return (
