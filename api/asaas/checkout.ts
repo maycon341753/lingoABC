@@ -24,6 +24,8 @@ const decodeJwtPayload = (token: string) => {
 };
 
 const isUuid = (v: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(v);
+const isRecord = (v: unknown): v is Record<string, unknown> => typeof v === "object" && v !== null;
+const readString = (v: unknown) => (typeof v === "string" ? v : null);
 
 async function fetchAsaas(path: string, method: string, apiKey: string, body?: unknown) {
   const res = await fetch(`${baseUrl}${path}`, {
@@ -96,8 +98,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     let customerId: string | null = null;
     if (customerEmailFinal) {
       const found = await fetchAsaas(`/customers?email=${encodeURIComponent(customerEmailFinal)}`, "GET", apiKey);
-      const list = Array.isArray(found?.data) ? found.data : Array.isArray(found) ? found : [];
-      customerId = list[0]?.id ?? null;
+      const list =
+        isRecord(found) && Array.isArray(found.data)
+          ? (found.data as unknown[])
+          : Array.isArray(found)
+          ? (found as unknown[])
+          : [];
+      const first = list[0];
+      customerId = isRecord(first) ? readString(first.id) : null;
     }
     if (!customerId) {
       const created = await fetchAsaas(`/customers`, "POST", apiKey, {
@@ -105,7 +113,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         email: customerEmailFinal,
         cpfCnpj: customerCpfCnpj,
       });
-      customerId = created?.id;
+      customerId = isRecord(created) ? readString(created.id) : null;
     }
     if (!customerId) return res.status(400).json({ error: "customer_not_created" });
 
