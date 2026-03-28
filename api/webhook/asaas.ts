@@ -125,28 +125,34 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const status = confirmed ? "ativa" : canceled ? "cancelada" : "pendente";
     const amount = value || Number(plan?.price ?? 0);
+    if (confirmed) {
+      const { data: existingSub } = await supabase
+        .from("subscriptions")
+        .select("id,expires_at")
+        .eq("user_id", userId)
+        .order("expires_at", { ascending: false, nullsFirst: false })
+        .limit(1)
+        .maybeSingle();
+      const existingExpiresIso = typeof (existingSub as { expires_at?: string | null } | null)?.expires_at === "string" ? (existingSub as { expires_at?: string | null }).expires_at : "";
+      const existingExpiresMs = existingExpiresIso ? new Date(existingExpiresIso).getTime() : NaN;
+      const base = Number.isFinite(existingExpiresMs) && existingExpiresMs > start.getTime() ? new Date(existingExpiresIso) : start;
+      const nextExpires = new Date(base);
+      nextExpires.setMonth(nextExpires.getMonth() + (periodMonths > 0 ? periodMonths : 1));
 
-    const subPayload = {
-      user_id: userId,
-      plan_id: planId,
-      status,
-      value: amount,
-      started_at: start.toISOString(),
-      expires_at: expires.toISOString(),
-    };
+      const subPayload = {
+        user_id: userId,
+        plan_id: planId,
+        status: "ativa",
+        value: amount,
+        started_at: start.toISOString(),
+        expires_at: nextExpires.toISOString(),
+      };
 
-    const { data: existingSub } = await supabase
-      .from("subscriptions")
-      .select("id")
-      .eq("user_id", userId)
-      .order("expires_at", { ascending: false, nullsFirst: false })
-      .limit(1)
-      .maybeSingle();
-
-    if (existingSub?.id) {
-      await supabase.from("subscriptions").update(subPayload).eq("id", existingSub.id);
-    } else {
-      await supabase.from("subscriptions").insert(subPayload);
+      if ((existingSub as { id?: string | null } | null)?.id) {
+        await supabase.from("subscriptions").update(subPayload).eq("id", (existingSub as { id: string }).id);
+      } else {
+        await supabase.from("subscriptions").insert(subPayload);
+      }
     }
 
     try {
@@ -249,28 +255,34 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   const status = confirmed ? "ativa" : canceled ? "cancelada" : "pendente";
   const amount = value || Number(plan?.price ?? 0);
+  if (confirmed) {
+    const { data: existingSub } = await supabase
+      .from("subscriptions")
+      .select("id,expires_at")
+      .eq("user_id", userId)
+      .order("expires_at", { ascending: false, nullsFirst: false })
+      .limit(1)
+      .maybeSingle();
+    const existingExpiresIso = typeof (existingSub as { expires_at?: string | null } | null)?.expires_at === "string" ? (existingSub as { expires_at?: string | null }).expires_at : "";
+    const existingExpiresMs = existingExpiresIso ? new Date(existingExpiresIso).getTime() : NaN;
+    const base = Number.isFinite(existingExpiresMs) && existingExpiresMs > start.getTime() ? new Date(existingExpiresIso) : start;
+    const nextExpires = new Date(base);
+    nextExpires.setMonth(nextExpires.getMonth() + (periodMonths > 0 ? periodMonths : 1));
 
-  const subPayload = {
-    user_id: userId,
-    plan_id: planId,
-    status,
-    value: amount,
-    started_at: start.toISOString(),
-    expires_at: expires.toISOString(),
-  };
+    const subPayload = {
+      user_id: userId,
+      plan_id: planId,
+      status: "ativa",
+      value: amount,
+      started_at: start.toISOString(),
+      expires_at: nextExpires.toISOString(),
+    };
 
-  const { data: existingSub } = await supabase
-    .from("subscriptions")
-    .select("id")
-    .eq("user_id", userId)
-    .order("expires_at", { ascending: false, nullsFirst: false })
-    .limit(1)
-    .maybeSingle();
-
-  if (existingSub?.id) {
-    await supabase.from("subscriptions").update(subPayload).eq("id", existingSub.id);
-  } else {
-    await supabase.from("subscriptions").insert(subPayload);
+    if ((existingSub as { id?: string | null } | null)?.id) {
+      await supabase.from("subscriptions").update(subPayload).eq("id", (existingSub as { id: string }).id);
+    } else {
+      await supabase.from("subscriptions").insert(subPayload);
+    }
   }
 
   try {

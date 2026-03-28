@@ -140,42 +140,46 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(200).json({ ok: true, status, db_synced: false, error: "supabase_unreachable" });
   }
 
+  if (!confirmed) {
+    return res.status(200).json({ ok: true, paymentId, status: "pendente", db_synced: false });
+  }
+
   const periodMonths = Math.max(1, Number(plan?.period_months ?? 1));
   const planId = plan?.id ?? null;
-  const start = new Date(receivedDateIso);
-  const expires = new Date(start);
-  expires.setMonth(expires.getMonth() + periodMonths);
-
+  const paidAt = new Date(receivedDateIso);
   const amount = value || Number(plan?.price ?? 0);
-
-  const subPayload = {
-    user_id: userId,
-    plan_id: planId,
-    status,
-    value: amount,
-    started_at: start.toISOString(),
-    expires_at: expires.toISOString(),
-  };
 
   const { data: existingSub } = await supabaseAdmin
     .from("subscriptions")
-    .select("id")
+    .select("id,expires_at")
     .eq("user_id", userId)
     .order("expires_at", { ascending: false, nullsFirst: false })
     .limit(1)
     .maybeSingle();
 
-  let up;
-  if (existingSub?.id) {
-    up = await supabaseAdmin.from("subscriptions").update(subPayload).eq("id", existingSub.id).select("status,expires_at,plan_id");
-  } else {
-    up = await supabaseAdmin.from("subscriptions").insert(subPayload).select("status,expires_at,plan_id");
-  }
+  const existingExpiresIso = typeof existingSub?.expires_at === "string" ? existingSub.expires_at : "";
+  const existingExpiresMs = existingExpiresIso ? new Date(existingExpiresIso).getTime() : NaN;
+  const base = Number.isFinite(existingExpiresMs) && existingExpiresMs > paidAt.getTime() ? new Date(existingExpiresIso) : paidAt;
+  const expires = new Date(base);
+  expires.setMonth(expires.getMonth() + periodMonths);
+
+  const subPayload = {
+    user_id: userId,
+    plan_id: planId,
+    status: "ativa",
+    value: amount,
+    started_at: paidAt.toISOString(),
+    expires_at: expires.toISOString(),
+  };
+
+  const up = existingSub?.id
+    ? await supabaseAdmin.from("subscriptions").update(subPayload).eq("id", existingSub.id).select("status,expires_at,plan_id")
+    : await supabaseAdmin.from("subscriptions").insert(subPayload).select("status,expires_at,plan_id");
 
   if (up.error) {
     const msg = String(up.error.message ?? "");
     if (/fetch failed/i.test(msg)) {
-      return res.status(200).json({ ok: true, status, db_synced: false, error: "supabase_unreachable" });
+      return res.status(200).json({ ok: true, status: "ativa", db_synced: false, error: "supabase_unreachable" });
     }
     return res.status(400).json({ error: msg || "upsert_failed" });
   }
@@ -183,7 +187,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   return res.status(200).json({
     ok: true,
     paymentId,
-    status,
+    status: "ativa",
     db_synced: true,
     expires_at: up.data?.[0]?.expires_at ?? expires.toISOString(),
     plan_id: up.data?.[0]?.plan_id ?? planId,

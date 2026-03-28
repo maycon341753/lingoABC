@@ -100,39 +100,5 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     )
     .select("payment_id");
 
-  const { data: planRow } = await supabase
-    .from("plans")
-    .select("id,period_months,price")
-    .eq("name", description)
-    .maybeSingle();
-  const planId = planRow?.id ?? null;
-  const periodMonths = Number(planRow?.period_months ?? 1);
-
-  const expires = new Date();
-  expires.setMonth(expires.getMonth() + (periodMonths > 0 ? periodMonths : 1));
-
-  const subPayload = {
-    user_id: userId,
-    plan_id: planId,
-    status: "pendente",
-    value: value || Number(planRow?.price ?? 0),
-    started_at: nowIso,
-    expires_at: expires.toISOString(),
-  };
-
-  const { data: existingSub } = await supabase
-    .from("subscriptions")
-    .select("id")
-    .eq("user_id", userId)
-    .order("expires_at", { ascending: false, nullsFirst: false })
-    .limit(1)
-    .maybeSingle();
-
-  if (existingSub && isRecord(existingSub) && isString(existingSub.id)) {
-    await supabase.from("subscriptions").update(subPayload).eq("id", existingSub.id).select("status");
-  } else {
-    await supabase.from("subscriptions").insert(subPayload).select("status");
-  }
-
   return res.status(200).json({ ok: true, linked: true, paymentId, userId });
 }

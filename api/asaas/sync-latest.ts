@@ -188,7 +188,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const periodMonths = Math.max(1, Number(plan?.period_months ?? 1));
   const planId = plan?.id ?? null;
   const start = new Date(receivedDateIso);
-  const expires = new Date(start);
+  const { data: existingSub } = await supabaseAdmin
+    .from("subscriptions")
+    .select("id,expires_at")
+    .eq("user_id", userId)
+    .order("expires_at", { ascending: false, nullsFirst: false })
+    .limit(1)
+    .maybeSingle();
+  const existingExpiresIso = typeof existingSub?.expires_at === "string" ? existingSub.expires_at : "";
+  const existingExpiresMs = existingExpiresIso ? new Date(existingExpiresIso).getTime() : NaN;
+  const base = Number.isFinite(existingExpiresMs) && existingExpiresMs > start.getTime() ? new Date(existingExpiresIso) : start;
+  const expires = new Date(base);
   expires.setMonth(expires.getMonth() + periodMonths);
   const amount = value || Number(plan?.price ?? 0);
 
@@ -200,14 +210,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     started_at: start.toISOString(),
     expires_at: expires.toISOString(),
   };
-
-  const { data: existingSub } = await supabaseAdmin
-    .from("subscriptions")
-    .select("id")
-    .eq("user_id", userId)
-    .order("expires_at", { ascending: false, nullsFirst: false })
-    .limit(1)
-    .maybeSingle();
 
   let up;
   if (existingSub?.id) {
