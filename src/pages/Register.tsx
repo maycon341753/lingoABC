@@ -129,6 +129,10 @@ const RegisterPage = () => {
           onSubmit={async (e) => {
             e.preventDefault();
             if (isSubmitting) return;
+            if (!name.trim() || !email.trim() || !cpf.trim() || !password || !confirmPassword) {
+              alert("Preencha todos os campos.");
+              return;
+            }
             if (!/^\d{11}$/.test(cpf)) {
               alert("CPF inválido. Use 11 dígitos.");
               return;
@@ -190,11 +194,11 @@ const RegisterPage = () => {
         >
           <div>
             <Label htmlFor="name" className="font-bold">Nome do responsável</Label>
-            <Input id="name" placeholder="Seu nome" className="rounded-xl mt-1" value={name} onChange={(e) => setName(e.target.value)} />
+            <Input id="name" placeholder="Seu nome" className="rounded-xl mt-1" value={name} onChange={(e) => setName(e.target.value)} required />
           </div>
           <div>
             <Label htmlFor="email" className="font-bold">E-mail</Label>
-            <Input id="email" type="email" placeholder="seu@email.com" className="rounded-xl mt-1" value={email} onChange={(e) => setEmail(e.target.value)} />
+            <Input id="email" type="email" placeholder="seu@email.com" className="rounded-xl mt-1" value={email} onChange={(e) => setEmail(e.target.value)} required />
           </div>
           <div>
             <Label htmlFor="cpf" className="font-bold">CPF</Label>
@@ -219,6 +223,7 @@ const RegisterPage = () => {
                 className="rounded-xl pr-12"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
+                required
               />
               <button
                 type="button"
@@ -240,6 +245,7 @@ const RegisterPage = () => {
                 className="rounded-xl pr-12"
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
+                required
               />
               <button
                 type="button"
