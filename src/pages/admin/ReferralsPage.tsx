@@ -31,9 +31,22 @@ type ReferralStatSelectRow = {
   commission_due: number | null;
 };
 
+type WithdrawalAdminRow = {
+  id: string;
+  requested_at: string | null;
+  status: string | null;
+  amount: number | null;
+  pix_type: string | null;
+  pix_key: string | null;
+  requester_name: string | null;
+  requester_email: string | null;
+};
+
 const ReferralsPage = () => {
   const [rows, setRows] = useState<ReferralStatRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [withdrawals, setWithdrawals] = useState<WithdrawalAdminRow[]>([]);
+  const [withdrawalsLoading, setWithdrawalsLoading] = useState(true);
   const [editOpen, setEditOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editCode, setEditCode] = useState("");
@@ -91,8 +104,26 @@ const ReferralsPage = () => {
     setLoading(false);
   };
 
+  const loadWithdrawals = async () => {
+    setWithdrawalsLoading(true);
+    const { data, error } = await supabase
+      .from("v_admin_referral_withdrawals")
+      .select("id,requested_at,status,amount,pix_type,pix_key,requester_name,requester_email")
+      .order("requested_at", { ascending: false })
+      .limit(200);
+    if (error) {
+      alert(error.message);
+      setWithdrawals([]);
+      setWithdrawalsLoading(false);
+      return;
+    }
+    setWithdrawals(((data ?? []) as WithdrawalAdminRow[]) ?? []);
+    setWithdrawalsLoading(false);
+  };
+
   useEffect(() => {
     loadRows().then(() => {});
+    loadWithdrawals().then(() => {});
   }, []);
 
   return (
@@ -200,6 +231,90 @@ const ReferralsPage = () => {
           )}
         />
       )}
+
+      <div className="mt-8">
+        <h2 className="text-xl font-display font-extrabold mb-4">Solicitações de Saque</h2>
+        {withdrawalsLoading ? (
+          <p className="text-muted-foreground font-bold">Carregando…</p>
+        ) : (
+          <div className="bg-card rounded-2xl shadow-card overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-border bg-muted/50">
+                    <th className="text-left p-4 font-bold text-muted-foreground">Data</th>
+                    <th className="text-left p-4 font-bold text-muted-foreground">Usuário</th>
+                    <th className="text-left p-4 font-bold text-muted-foreground">PIX</th>
+                    <th className="text-left p-4 font-bold text-muted-foreground">Status</th>
+                    <th className="text-left p-4 font-bold text-muted-foreground">Valor</th>
+                    <th className="text-right p-4 font-bold text-muted-foreground">Ações</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {withdrawals.length === 0 ? (
+                    <tr>
+                      <td className="p-6 text-muted-foreground font-bold" colSpan={6}>
+                        Nenhuma solicitação ainda.
+                      </td>
+                    </tr>
+                  ) : (
+                    withdrawals.map((w) => {
+                      const st = String(w.status ?? "").toLowerCase().trim();
+                      const label = st === "paid" ? "Pago" : st === "rejected" ? "Rejeitado" : "Pendente";
+                      const badge =
+                        st === "paid"
+                          ? "bg-primary/10 text-primary"
+                          : st === "rejected"
+                          ? "bg-destructive/10 text-destructive"
+                          : "bg-sun/10 text-sun";
+                      const dt = w.requested_at ? new Date(w.requested_at).toLocaleString("pt-BR") : "—";
+                      const userLabel = w.requester_email || w.requester_name || "—";
+                      const pix = `${w.pix_type ?? "pix"}: ${w.pix_key ?? "—"}`;
+                      const value = Number(w.amount ?? 0);
+                      const canPay = canEditCommission && st === "pending";
+                      return (
+                        <tr key={w.id} className="border-b border-border last:border-0 hover:bg-muted/30 transition-colors">
+                          <td className="p-4">{dt}</td>
+                          <td className="p-4 font-bold">{userLabel}</td>
+                          <td className="p-4">{pix}</td>
+                          <td className="p-4">
+                            <span className={`px-2 py-1 rounded-full text-xs font-bold ${badge}`}>{label}</span>
+                          </td>
+                          <td className="p-4 font-bold">{`R$ ${value.toFixed(2)}`}</td>
+                          <td className="p-4 text-right">
+                            <div className="flex justify-end gap-2">
+                              <Button
+                                className="rounded-xl bg-gradient-hero font-bold"
+                                type="button"
+                                disabled={!canPay}
+                                onClick={async () => {
+                                  const ok = confirm("Confirmar que este saque foi pago?");
+                                  if (!ok) return;
+                                  const up = await supabase
+                                    .from("referral_withdrawals")
+                                    .update({ status: "paid", paid_at: new Date().toISOString(), paid_by: user?.id ?? null })
+                                    .eq("id", w.id);
+                                  if (up.error) {
+                                    alert(up.error.message);
+                                    return;
+                                  }
+                                  loadWithdrawals().then(() => {});
+                                }}
+                              >
+                                Marcar como pago
+                              </Button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 };
