@@ -7,6 +7,11 @@ type SubscriptionMetricsRow = {
   status: string | null;
 };
 
+const isPaidStatus = (raw: string | null) => {
+  const s = String(raw ?? "").toLowerCase().trim();
+  return s === "active" || s === "ativa" || s === "confirmed" || s === "received" || s === "paid";
+};
+
 const DashboardPage = () => {
   const [usersCount, setUsersCount] = useState<number | null>(null);
   const [subsCount, setSubsCount] = useState<number | null>(null);
@@ -37,12 +42,9 @@ const DashboardPage = () => {
       setLessonsCount(cLessons ?? 0);
 
       const subsData = (subs.data ?? []) as SubscriptionMetricsRow[];
-      setSubsCount(
-        subsData.filter(
-          (s) => (s.status ?? "").toLowerCase() === "active" || (s.status ?? "").toLowerCase() === "ativa",
-        ).length,
-      );
-      const revenue = subsData.reduce((sum, s) => sum + Number(s.value ?? 0), 0);
+      const paidSubs = subsData.filter((s) => isPaidStatus(s.status));
+      setSubsCount(paidSubs.length);
+      const revenue = paidSubs.reduce((sum, s) => sum + Number(s.value ?? 0), 0);
       setRevenueThisMonth(revenue);
     };
     load();

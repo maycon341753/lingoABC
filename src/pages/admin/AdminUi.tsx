@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Pencil, Trash2 } from "lucide-react";
+import { Pencil, Trash2, Eye } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
@@ -31,12 +31,25 @@ export const CrudTable = <T,>({
   </div>
 );
 
-export const ActionButtons = ({ onEdit, onDelete }: { onEdit?: () => void; onDelete?: () => void }) => {
+export const ActionButtons = ({
+  onView,
+  onEdit,
+  onDelete,
+}: {
+  onView?: () => void;
+  onEdit?: () => void;
+  onDelete?: () => void;
+}) => {
   const [open, setOpen] = useState(false);
 
   return (
     <td className="p-4 text-right">
       <div className="flex justify-end gap-2">
+        {onView && (
+          <button type="button" className="p-2 rounded-lg hover:bg-muted transition-colors text-primary" onClick={onView}>
+            <Eye className="w-4 h-4" />
+          </button>
+        )}
         {onEdit && (
           <button type="button" className="p-2 rounded-lg hover:bg-muted transition-colors text-accent" onClick={onEdit}>
             <Pencil className="w-4 h-4" />
