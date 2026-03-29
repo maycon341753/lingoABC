@@ -18,37 +18,57 @@ const DashboardPage = () => {
   const [revenueThisMonth, setRevenueThisMonth] = useState<number | null>(null);
   const [lessonsCount, setLessonsCount] = useState<number | null>(null);
 
+  const buildApiUrl = (path: string) => {
+    if (typeof window !== "undefined") {
+      const host = window.location.hostname;
+      if (host === "localhost" || host === "127.0.0.1") return path;
+    }
+    const base = String(import.meta.env.VITE_API_BASE_URL ?? "").replace(/\/+$/, "");
+    if (!base) return path;
+    return `${base}${path.startsWith("/") ? "" : "/"}${path}`;
+  };
+
   useEffect(() => {
     let mounted = true;
     const load = async () => {
       const monthStartIso = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString();
+      let token = (await supabase.auth.getSession()).data.session?.access_token;
+      if (!token) token = (await supabase.auth.refreshSession()).data.session?.access_token;
+      if (token) {
+        try {
+          const r = await fetch(buildApiUrl("/api/admin/dashboard-metrics"), {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+          });
+          const j = (await r.json().catch(() => null)) as
+            | { usersCount?: number; lessonsCount?: number; subsCountMonth?: number; revenueMonth?: number; error?: string }
+            | null;
+          if (mounted && j && !j.error) {
+            setUsersCount(Number(j.usersCount ?? 0));
+            setLessonsCount(Number(j.lessonsCount ?? 0));
+            setSubsCount(Number(j.subsCountMonth ?? 0));
+            setRevenueThisMonth(Number(j.revenueMonth ?? 0));
+            return;
+          }
+        } catch {
+          void 0;
+        }
+      }
 
-      const [usersTry, { count: cLessons }, subsTryStartedAt] = await Promise.all([
+      const [usersTry, lessonsTry, subsTry] = await Promise.all([
         supabase.from("v_admin_users").select("user_id", { count: "exact", head: true }),
         supabase.from("lessons").select("id", { count: "exact", head: true }),
-        supabase
-          .from("subscriptions")
-          .select("value, started_at, status")
-          .gte("started_at", monthStartIso),
+        supabase.from("subscriptions").select("value,status,started_at,created_at").or(`started_at.gte.${monthStartIso},created_at.gte.${monthStartIso}`),
       ]);
 
-      const users =
-        usersTry.error != null ? await supabase.from("profiles").select("id", { count: "exact", head: true }) : usersTry;
-
-      const subs =
-        subsTryStartedAt.error != null
-          ? await supabase.from("subscriptions").select("value, status, created_at").gte("created_at", monthStartIso)
-          : subsTryStartedAt;
-
       if (!mounted) return;
-      setUsersCount(users.count ?? 0);
-      setLessonsCount(cLessons ?? 0);
+      setUsersCount(usersTry.count ?? 0);
+      setLessonsCount(lessonsTry.count ?? 0);
 
-      const subsData = (subs.data ?? []) as SubscriptionMetricsRow[];
+      const subsData = (subsTry.data ?? []) as SubscriptionMetricsRow[];
       const paidSubs = subsData.filter((s) => isPaidStatus(s.status));
       setSubsCount(paidSubs.length);
-      const revenue = paidSubs.reduce((sum, s) => sum + Number(s.value ?? 0), 0);
-      setRevenueThisMonth(revenue);
+      setRevenueThisMonth(paidSubs.reduce((sum, s) => sum + Number(s.value ?? 0), 0));
     };
     load();
     return () => {
