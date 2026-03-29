@@ -40,6 +40,24 @@ type AdminUserRow = {
   role: string | null;
 };
 
+type ActiveSubscriptionRpcRow = {
+  id: string;
+  user_id: string;
+  user_name: string | null;
+  plan_name: string | null;
+  value: number | null;
+  status: string | null;
+  expires_at: string | null;
+};
+
+type UserProfileRpcRow = {
+  user_id: string;
+  name: string | null;
+  email: string | null;
+  cpf: string | null;
+  role: string | null;
+};
+
 const SubscriptionsPage = () => {
   const [rows, setRows] = useState<SubscriptionRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -51,12 +69,43 @@ const SubscriptionsPage = () => {
 
   const loadRows = async () => {
     setLoading(true);
+    const rpc = await supabase.rpc("admin_active_subscriptions");
+    if (rpc.error) {
+      const msg = String(rpc.error.message ?? "").toLowerCase();
+      if (msg.includes("not_allowed")) {
+        alert("Sem permissão. Promova seu usuário para super_admin e faça logout/login.");
+        setRows([]);
+        setLoading(false);
+        return;
+      }
+    }
+    if (!rpc.error && Array.isArray(rpc.data)) {
+      const data = rpc.data as ActiveSubscriptionRpcRow[];
+      setRows(
+        data.map((r) => ({
+          id: String(r.id ?? ""),
+          user_id: String(r.user_id ?? ""),
+          user: String(r.user_name ?? "-"),
+          plan: String(r.plan_name ?? "-"),
+          value: Number(r.value ?? 0),
+          status: String(r.status ?? "-"),
+          expires: r.expires_at ? new Date(r.expires_at).toLocaleDateString("pt-BR") : "—",
+        })),
+      );
+      setLoading(false);
+      return;
+    }
+
     const { data, error } = await supabase
       .from("subscriptions")
       .select("id,user_id,status,value,expires_at,plans(name)")
       .order("expires_at", { ascending: false });
     if (error) {
-      alert(error.message);
+      alert(
+        String(error.message ?? "").toLowerCase().includes("stack depth")
+          ? "Erro no banco (stack depth). É necessário ajustar RLS/policies ou criar a função admin_active_subscriptions no Supabase."
+          : error.message,
+      );
       setRows([]);
       setLoading(false);
       return;
@@ -108,6 +157,30 @@ const SubscriptionsPage = () => {
     setDetailUser(null);
     setDetailCycles([]);
     try {
+      const [userRpc, cyclesRpc] = await Promise.all([
+        supabase.rpc("admin_user_profile", { p_user_id: userId }),
+        supabase.rpc("admin_user_subscription_cycles", { p_user_id: userId }),
+      ]);
+      if (userRpc.error || cyclesRpc.error) {
+        const msg = String(userRpc.error?.message ?? cyclesRpc.error?.message ?? "").toLowerCase();
+        if (msg.includes("not_allowed")) {
+          throw new Error("Sem permissão. Promova seu usuário para super_admin e faça logout/login.");
+        }
+      }
+      if (!userRpc.error && Array.isArray(userRpc.data) && userRpc.data.length > 0 && !cyclesRpc.error && Array.isArray(cyclesRpc.data)) {
+        const u = (userRpc.data[0] ?? null) as UserProfileRpcRow | null;
+        setDetailUser({
+          id: userId,
+          name: String(u?.name ?? "—"),
+          email: String(u?.email ?? "—"),
+          cpf: String(u?.cpf ?? "—"),
+          role: String(u?.role ?? "—"),
+        });
+        setDetailCycles(((cyclesRpc.data ?? []) as SubscriptionCycleRow[]) ?? []);
+        setDetailLoading(false);
+        return;
+      }
+
       const [userRes, cyclesRes] = await Promise.all([
         supabase.from("v_admin_users").select("user_id,name,email,cpf,role").eq("user_id", userId).maybeSingle(),
         supabase
