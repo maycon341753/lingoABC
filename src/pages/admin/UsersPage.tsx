@@ -72,6 +72,8 @@ type UserEmailsResponse = {
 };
 
 const UsersPage = () => {
+  const CURRENT_PLAN = "__current_plan__";
+  const LOADING_PLAN = "__loading_plan__";
   const [usersData, setUsersData] = useState<UserRow[]>([]);
   const [userDialogOpen, setUserDialogOpen] = useState(false);
   const [editingUserId, setEditingUserId] = useState<string | null>(null);
@@ -83,7 +85,10 @@ const UsersPage = () => {
   const [userPlanName, setUserPlanName] = useState("—");
   const [userStatus, setUserStatus] = useState<string>("—");
   const [subRowId, setSubRowId] = useState<string | null>(null);
+  const [subPlanId, setSubPlanId] = useState<string | null>(null);
   const [subExpiresAt, setSubExpiresAt] = useState<string | null>(null);
+  const [planLoading, setPlanLoading] = useState(false);
+  const [subDirty, setSubDirty] = useState(false);
   const [plans, setPlans] = useState<PlanRow[]>([]);
   const { isSuperAdmin } = useAuth();
   const [detailOpen, setDetailOpen] = useState(false);
@@ -349,6 +354,9 @@ const UsersPage = () => {
                   onChange={(e) => {
                     const nextId = e.target.value;
                     setUserPlanId(nextId);
+                    if (nextId === "") setUserStatus("—");
+                    if (nextId !== CURRENT_PLAN && nextId !== LOADING_PLAN) setSubDirty(true);
+                    if (nextId === "" || nextId === CURRENT_PLAN || nextId === LOADING_PLAN) return;
                     const nextName = plans.find((p) => p.id === nextId)?.name ?? "—";
                     setUserPlanName(nextName || "—");
                   }}
@@ -358,7 +366,17 @@ const UsersPage = () => {
                     <option value="">{userPlanName}</option>
                   ) : (
                     <>
-                      <option value="">Selecione…</option>
+                      <option value="">Nenhum plano</option>
+                      {planLoading && (
+                        <option value={LOADING_PLAN} disabled>
+                          Carregando…
+                        </option>
+                      )}
+                      {!planLoading && userPlanName !== "—" && !subPlanId && (
+                        <option value={CURRENT_PLAN} disabled>
+                          Atual: {userPlanName}
+                        </option>
+                      )}
                       {plans.map((p) => (
                         <option key={p.id} value={p.id}>
                           {p.name ?? p.id}
@@ -376,7 +394,10 @@ const UsersPage = () => {
                   <select
                     className="flex h-10 w-full rounded-xl border border-input bg-background px-3 py-2 text-sm"
                     value={userStatus}
-                    onChange={(e) => setUserStatus(e.target.value)}
+                    onChange={(e) => {
+                      setUserStatus(e.target.value);
+                      setSubDirty(true);
+                    }}
                   >
                     <option value="—">—</option>
                     <option value="active">active</option>
@@ -401,46 +422,103 @@ const UsersPage = () => {
                   setUserDialogOpen(false);
                   return;
                 }
-                const upd = await supabase
-                  .from("profiles")
-                  .update({ name: userName || null, role: userRole || null })
-                  .eq("id", editingUserId);
-                if (upd.error) {
-                  alert(upd.error.message);
-                  return;
+                const profileRpc = await supabase.rpc("admin_update_profile", {
+                  p_user_id: editingUserId,
+                  p_name: userName || null,
+                  p_role: userRole || null,
+                });
+                if (profileRpc.error) {
+                  const msg = String(profileRpc.error.message ?? "");
+                  const lower = msg.toLowerCase();
+                  const missingRpc = lower.includes("could not find the function") || lower.includes("pgrst202");
+                  if (!missingRpc) {
+                    alert(msg);
+                    return;
+                  }
+                  const upd = await supabase
+                    .from("profiles")
+                    .update({ name: userName || null, role: userRole || null })
+                    .eq("id", editingUserId);
+                  if (upd.error) {
+                    const m = String(upd.error.message ?? "");
+                    if (m.toLowerCase().includes("stack depth")) alert("Erro no banco (stack depth) ao salvar perfil. Crie a função admin_update_profile no Supabase.");
+                    else alert(m);
+                    return;
+                  }
                 }
 
-                if (isSuperAdmin) {
-                  const nextStatus = (userStatus || "—").trim();
-                  const nextPlanId = userPlanId || null;
-                  if (nextStatus !== "—" || nextPlanId) {
-                    const nowIso = new Date().toISOString();
-                    const nextExpiresAt = nextStatus === "active" ? null : nowIso;
-                    if (subRowId) {
-                      const subUpd = await supabase
-                        .from("subscriptions")
-                        .update({
-                          plan_id: nextPlanId,
-                          status: nextStatus === "—" ? null : nextStatus,
-                          expires_at: nextStatus === "—" ? subExpiresAt : nextExpiresAt,
-                        })
-                        .eq("id", subRowId);
-                      if (subUpd.error) {
-                        alert(subUpd.error.message);
+                if (isSuperAdmin && subDirty) {
+                  const nextStatusRaw = (userStatus || "—").trim();
+                  const planChoice = userPlanId || "";
+                  const choseNone = planChoice === "";
+                  const choseCurrent = planChoice === CURRENT_PLAN || planChoice === LOADING_PLAN;
+                  const nextPlanId = choseCurrent ? subPlanId : planChoice || null;
+                  const nextStatus = nextStatusRaw;
+                  const wantsDelete = choseNone;
+                  if (nextStatus !== "—" || nextPlanId || subRowId) {
+                    const planRpc = await supabase.rpc("admin_set_user_plan", {
+                      p_user_id: editingUserId,
+                      p_plan_id: wantsDelete ? null : nextPlanId,
+                      p_status: wantsDelete ? null : nextStatus === "—" ? null : nextStatus,
+                    });
+                    if (planRpc.error) {
+                      const msg = String(planRpc.error.message ?? "");
+                      const lower = msg.toLowerCase();
+                      const missingRpc = lower.includes("could not find the function") || lower.includes("pgrst202");
+                      if (!missingRpc) {
+                        if (lower.includes("stack depth")) alert("Erro no banco (stack depth) ao salvar plano. Crie a função admin_set_user_plan no Supabase.");
+                        else alert(msg);
                         return;
                       }
-                    } else {
-                      const subIns = await supabase.from("subscriptions").insert({
-                        user_id: editingUserId,
-                        plan_id: nextPlanId,
-                        status: nextStatus === "—" ? null : nextStatus,
-                        started_at: nowIso,
-                        expires_at: nextStatus === "active" ? null : nowIso,
-                        value: null,
-                      });
-                      if (subIns.error) {
-                        alert(subIns.error.message);
-                        return;
+
+                      const nowIso = new Date().toISOString();
+                      const nextExpiresAt = nextStatus === "active" ? null : nowIso;
+                      if (subRowId) {
+                        if (wantsDelete) {
+                          const subDel = await supabase.from("subscriptions").delete().eq("id", subRowId);
+                          if (subDel.error) {
+                            alert(subDel.error.message);
+                            return;
+                          }
+                        } else {
+                          if (!nextPlanId) {
+                            alert('Selecione um plano ou escolha "Nenhum plano" com Status "—".');
+                            return;
+                          }
+                          const subUpd = await supabase
+                            .from("subscriptions")
+                            .update({
+                              plan_id: nextPlanId,
+                              status: nextStatus === "—" ? null : nextStatus,
+                              expires_at: nextStatus === "—" ? subExpiresAt : nextExpiresAt,
+                            })
+                            .eq("id", subRowId);
+                          if (subUpd.error) {
+                            alert(subUpd.error.message);
+                            return;
+                          }
+                        }
+                      } else {
+                        if (choseCurrent || wantsDelete) {
+                          void 0;
+                        } else {
+                          if (!nextPlanId) {
+                            alert('Selecione um plano ou escolha "Nenhum plano" com Status "—".');
+                            return;
+                          }
+                          const subIns = await supabase.from("subscriptions").insert({
+                            user_id: editingUserId,
+                            plan_id: nextPlanId,
+                            status: nextStatus === "—" ? null : nextStatus,
+                            started_at: nowIso,
+                            expires_at: nextStatus === "active" ? null : nowIso,
+                            value: null,
+                          });
+                          if (subIns.error) {
+                            alert(subIns.error.message);
+                            return;
+                          }
+                        }
                       }
                     }
                   }
@@ -453,8 +531,8 @@ const UsersPage = () => {
                       u.id === editingUserId
                         ? {
                             ...u,
-                            plan: userPlanName || u.plan,
-                            subscription_status: userStatus === "—" ? null : userStatus,
+                            plan: (userPlanId || "") === "" ? "—" : userPlanName || u.plan,
+                            subscription_status: (userPlanId || "") === "" && (userStatus || "—") === "—" ? null : userStatus === "—" ? null : userStatus,
                           }
                         : u,
                     ),
@@ -491,10 +569,13 @@ const UsersPage = () => {
                 setUserRole(u.role ?? "user");
                 setUserPlanName(u.plan ?? "—");
                 setUserStatus((u.subscription_status ?? "—") || "—");
-                setUserPlanId("");
+                setUserPlanId(u.plan && u.plan !== "—" ? CURRENT_PLAN : "");
                 setSubRowId(null);
+                setSubPlanId(null);
                 setSubExpiresAt(null);
+                setSubDirty(false);
                 if (isSuperAdmin) {
+                  setPlanLoading(true);
                   supabase
                     .from("subscriptions")
                     .select("id,plan_id,status,expires_at")
@@ -503,18 +584,21 @@ const UsersPage = () => {
                     .limit(1)
                     .maybeSingle()
                     .then(({ data, error }) => {
+                      setPlanLoading(false);
                       if (error) return;
                       const row = (data ?? null) as SubscriptionEditRow | null;
                       if (!row) return;
                       setSubRowId(row.id);
                       setSubExpiresAt(row.expires_at ?? null);
-                      setUserPlanId(row.plan_id ?? "");
+                      setSubPlanId(row.plan_id ?? null);
+                      setUserPlanId(row.plan_id ?? (u.plan && u.plan !== "—" ? CURRENT_PLAN : ""));
                       if (row.plan_id) {
                         const planName = plans.find((p) => p.id === row.plan_id)?.name ?? u.plan ?? "—";
                         setUserPlanName(planName || "—");
                       }
                       const st = (row.status ?? u.subscription_status ?? "—") || "—";
                       setUserStatus(st);
+                      setSubDirty(false);
                     });
                 }
                 setUserDialogOpen(true);
