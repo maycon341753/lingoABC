@@ -170,13 +170,9 @@ const ModulesPage = () => {
   const moduleLocks = useMemo(() => {
     if (isSubscriber) return new Array(modules.length).fill(false);
     if (isGuest) return new Array(modules.length).fill(false);
-    return modules.map((_, i) => {
-      if (i === 0) return false;
-      const prevName = modules[i - 1]?.name ?? "Descoberta";
-      const prevCount = Number(moduleProgressCount[prevName] ?? 0);
-      return prevCount < 40;
-    });
-  }, [isGuest, isSubscriber, moduleProgressCount]);
+    if (isFreeUser) return new Array(modules.length).fill(false);
+    return new Array(modules.length).fill(false);
+  }, [isFreeUser, isGuest, isSubscriber]);
 
   const moduleName = modules[selectedModule]?.name ?? "Descoberta";
   const subjectLabel =
@@ -420,6 +416,16 @@ const ModulesPage = () => {
           >
             Vídeos e Músicas
           </button>
+          {!isGuest && (
+            <button
+              className="w-full sm:w-auto flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm transition-all bg-gradient-hero text-primary-foreground shadow-playful"
+              onClick={() => navigate("/modulos/livros-didaticos")}
+              type="button"
+            >
+              <BookOpen className="w-4 h-4" />
+              Livros Didáticos
+            </button>
+          )}
         </div>
 
         {/* Lesson map */}
