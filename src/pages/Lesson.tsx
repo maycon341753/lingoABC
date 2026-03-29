@@ -920,6 +920,36 @@ const LessonPage = () => {
     }
   }, []);
 
+  const playWrongSound = useCallback(() => {
+    try {
+      const Ctx = (window.AudioContext || (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext) as typeof AudioContext | undefined;
+      if (!Ctx) return;
+      const ctx = audioCtxRef.current ?? new Ctx();
+      audioCtxRef.current = ctx;
+      if (ctx.state === "suspended") ctx.resume().catch(() => void 0);
+      const t = ctx.currentTime;
+
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+
+      osc.type = "square";
+      osc.frequency.setValueAtTime(220, t);
+      osc.frequency.exponentialRampToValueAtTime(140, t + 0.2);
+
+      gain.gain.setValueAtTime(0.0001, t);
+      gain.gain.exponentialRampToValueAtTime(0.12, t + 0.01);
+      gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.22);
+
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+
+      osc.start(t);
+      osc.stop(t + 0.24);
+    } catch {
+      void 0;
+    }
+  }, []);
+
   const initQuestion = useCallback((idx: number) => {
     const question = questions[idx];
     setAnswered(false);
@@ -946,14 +976,20 @@ const LessonPage = () => {
     setMcSelected(idx);
     setAnswered(true);
     if (idx === (q as MultipleChoiceQ).correct) markCorrect();
-    else setLastCorrect(false);
+    else {
+      playWrongSound();
+      setLastCorrect(false);
+    }
   };
 
   // Drag order
   const handleDragSubmit = () => {
     setAnswered(true);
     if (JSON.stringify(dragItems) === JSON.stringify((q as DragOrderQ).correctOrder)) markCorrect();
-    else setLastCorrect(false);
+    else {
+      playWrongSound();
+      setLastCorrect(false);
+    }
   };
 
   // Complete word
@@ -962,7 +998,10 @@ const LessonPage = () => {
     const cq = q as CompleteWordQ;
     const correct = cq.missingIndices.every((mi, i) => wordLetters[i]?.toUpperCase() === cq.word[mi]);
     if (correct) markCorrect();
-    else setLastCorrect(false);
+    else {
+      playWrongSound();
+      setLastCorrect(false);
+    }
   };
 
   // Image match
@@ -980,7 +1019,10 @@ const LessonPage = () => {
       setAnswered(true);
       const allCorrect = imq.pairs.every((p) => newMatches[p.emoji] === p.label);
       if (allCorrect) markCorrect();
-      else setLastCorrect(false);
+      else {
+        playWrongSound();
+        setLastCorrect(false);
+      }
     }
   };
 
