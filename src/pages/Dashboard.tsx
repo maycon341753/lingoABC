@@ -59,10 +59,9 @@ const DashboardPage = () => {
   }, []);
 
   const parseLocalProgress = useCallback((uid: string) => {
-    const activities: { subject: string; module: string; lesson_id: number; status: string; score: number }[] = [];
-    const moduleMax: Record<string, number> = {};
-    try {
-      const prefix = `pointsLesson:${uid}:`;
+    const collect = (prefix: string) => {
+      const activities: { subject: string; module: string; lesson_id: number; status: string; score: number }[] = [];
+      const moduleMax: Record<string, number> = {};
       for (let i = 0; i < window.localStorage.length; i += 1) {
         const k = window.localStorage.key(i);
         if (!k || !k.startsWith(prefix)) continue;
@@ -78,14 +77,27 @@ const DashboardPage = () => {
         const modKey = `${subject}::${module}`;
         moduleMax[modKey] = Math.max(moduleMax[modKey] ?? 0, lessonId);
       }
+      const moduleProgress = Object.entries(moduleMax).map(([k, completed_lessons]) => {
+        const [subject, module] = k.split("::");
+        return { subject: String(subject ?? ""), module: String(module ?? ""), completed_lessons, completed: completed_lessons >= 40 };
+      });
+      return { activities, moduleProgress };
+    };
+
+    try {
+      const own = collect(`pointsLesson:${uid}:`);
+      if (own.activities.length > 0) return own;
+      const anon = collect("pointsLesson:anon:");
+      if (anon.activities.length === 0) return anon;
+      for (const a of anon.activities) {
+        const k = `pointsLesson:${uid}:${a.subject}:${a.module}:${a.lesson_id}`;
+        const prev = Number(window.localStorage.getItem(k) || "0");
+        if (!Number.isFinite(prev) || prev < a.score) window.localStorage.setItem(k, String(a.score));
+      }
+      return collect(`pointsLesson:${uid}:`);
     } catch {
       return { activities: [], moduleProgress: [] as { subject: string; module: string; completed_lessons: number; completed: boolean }[] };
     }
-    const moduleProgress = Object.entries(moduleMax).map(([k, completed_lessons]) => {
-      const [subject, module] = k.split("::");
-      return { subject: String(subject ?? ""), module: String(module ?? ""), completed_lessons, completed: completed_lessons >= 40 };
-    });
-    return { activities, moduleProgress };
   }, []);
 
   const syncLocalToServer = useCallback(
@@ -204,21 +216,9 @@ const DashboardPage = () => {
         const pts = completed.reduce((sum: number, r: { score: number | null }) => sum + Number(r.score ?? 0), 0);
         setPoints(pts);
       } else {
-        let pts = 0;
-        let count = 0;
-        try {
-          const prefix = `pointsLesson:${uid}:`;
-          for (let i = 0; i < window.localStorage.length; i += 1) {
-            const k = window.localStorage.key(i);
-            if (!k || !k.startsWith(prefix)) continue;
-            const v = Number(window.localStorage.getItem(k) || "0");
-            if (v > 0) count += 1;
-            pts += v;
-          }
-        } catch {
-          pts = 0;
-          count = 0;
-        }
+        const local = parseLocalProgress(uid);
+        const pts = local.activities.reduce((sum, a) => sum + Number(a.score ?? 0), 0);
+        const count = local.activities.length;
         setCompletedActivities(count);
         setPoints(pts);
         if (count > 0) {
@@ -255,7 +255,7 @@ const DashboardPage = () => {
       }
       setStreakDays(streak);
       setLoading(false);
-  }, [getToken, navigate, syncLocalToServer]);
+  }, [getToken, navigate, parseLocalProgress, syncLocalToServer]);
 
   useEffect(() => {
     const mountedRef = { current: true };
