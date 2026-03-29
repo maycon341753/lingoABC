@@ -4,6 +4,7 @@ import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { BadgePercent, BarChart3, Bell, BookOpen, ChevronLeft, CreditCard, Film, GraduationCap, LayoutDashboard, ListChecks, LogOut, Menu, NotebookPen, Search, Users, X } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/lib/supabase";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
 const items = [
   { to: "/admin/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -44,6 +45,13 @@ const AdminLayout = () => {
     const b = (parts.length > 1 ? parts[parts.length - 1]?.[0] : "")?.toUpperCase() ?? "";
     return `${a}${b}`.slice(0, 2);
   }, [user?.email, user?.user_metadata?.name]);
+
+  const displayName = useMemo(() => {
+    const name = String(user?.user_metadata?.name ?? "").trim();
+    return name || "Administrador";
+  }, [user?.user_metadata?.name]);
+
+  const displayEmail = useMemo(() => String(user?.email ?? "").trim() || "—", [user?.email]);
 
   const handleLogout = async () => {
     if (signingOut) return;
@@ -111,9 +119,35 @@ const AdminLayout = () => {
             <button type="button" className="h-11 w-11 inline-flex items-center justify-center rounded-xl hover:bg-muted transition-colors" aria-label="Notificações">
               <Bell className="w-5 h-5" />
             </button>
-            <div className="h-10 w-10 rounded-full bg-muted border border-border flex items-center justify-center font-extrabold">
-              {initials}
-            </div>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  type="button"
+                  className="h-10 w-10 rounded-full bg-muted border border-border flex items-center justify-center font-extrabold"
+                  aria-label="Perfil"
+                >
+                  {initials}
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-72 rounded-2xl p-2">
+                <DropdownMenuLabel className="px-2 py-2">
+                  <p className="font-extrabold leading-none">{displayName}</p>
+                  <p className="text-xs text-muted-foreground font-bold mt-1 break-all">{displayEmail}</p>
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <button
+                  type="button"
+                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold transition-all ${
+                    signingOut ? "opacity-60 cursor-not-allowed" : "text-muted-foreground hover:bg-muted"
+                  }`}
+                  onClick={handleLogout}
+                  disabled={signingOut}
+                >
+                  <LogOut className="w-4 h-4 shrink-0" />
+                  <span>{signingOut ? "Saindo..." : "Sair"}</span>
+                </button>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
       </header>
