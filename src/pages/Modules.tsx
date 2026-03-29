@@ -10,9 +10,9 @@ import mascot from "@/assets/mascot-owl.png";
 import { useSeo } from "@/lib/useSeo";
 
 const subjects = [
-  { id: "math", name: "Matemática", icon: Calculator, color: "bg-secondary" },
-  { id: "port", name: "Português", icon: BookOpen, color: "bg-primary" },
-  { id: "eng", name: "Inglês", icon: Globe, color: "bg-accent" },
+  { id: "math", name: "Matemática", icon: Calculator },
+  { id: "port", name: "Português", icon: BookOpen },
+  { id: "eng", name: "Inglês", icon: Globe },
 ];
 
 const modules = [
@@ -398,7 +398,7 @@ const ModulesPage = () => {
               key={s.id}
               className={`w-full sm:w-auto flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm transition-all ${
                 selectedSubject === s.id
-                  ? `${s.color} text-primary-foreground shadow-playful`
+                  ? "bg-secondary text-primary-foreground shadow-playful"
                   : "bg-muted text-muted-foreground hover:bg-muted/80"
               }`}
               onClick={() => {
@@ -411,14 +411,14 @@ const ModulesPage = () => {
             </button>
           ))}
           <button
-            className="w-full sm:w-auto flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm transition-all bg-secondary text-primary-foreground shadow-playful"
+            className="w-full sm:w-auto flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm transition-all bg-muted text-muted-foreground hover:bg-muted/80"
             onClick={() => navigate("/videos")}
           >
             Vídeos e Músicas
           </button>
           {!isGuest && (
             <button
-              className="w-full sm:w-auto flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm transition-all bg-gradient-hero text-primary-foreground shadow-playful"
+              className="w-full sm:w-auto flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm transition-all bg-muted text-muted-foreground hover:bg-muted/80"
               onClick={() => navigate("/modulos/livros-didaticos")}
               type="button"
             >
