@@ -71,7 +71,7 @@ const LessonsPage = () => {
   return (
     <div>
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
-        <h1 className="text-2xl font-display font-extrabold">Lições ⚙️</h1>
+        <h1 className="text-xl sm:text-2xl font-display font-extrabold">Lições ⚙️</h1>
         <Button
           className="bg-gradient-hero rounded-xl font-bold"
           type="button"
@@ -92,7 +92,7 @@ const LessonsPage = () => {
       </div>
 
       <Dialog open={lessonDialogOpen} onOpenChange={setLessonDialogOpen}>
-        <DialogContent className="sm:max-w-xl">
+        <DialogContent className="w-[calc(100vw-2rem)] sm:max-w-xl">
           <DialogHeader>
             <DialogTitle>{editingLessonId ? "Editar lição" : "Criar lição"}</DialogTitle>
           </DialogHeader>
@@ -218,10 +218,10 @@ const LessonsPage = () => {
         data={lessonsData}
         renderRow={(l) => (
           <tr key={l.id} className="border-b border-border last:border-0 hover:bg-muted/30 transition-colors">
-            <td className="p-4 font-bold">{l.title}</td>
-            <td className="p-4">{l.module_title}</td>
-            <td className="p-4">{l.position}</td>
-            <td className="p-4">
+              <td className="p-3 sm:p-4 font-bold">{l.title}</td>
+              <td className="p-3 sm:p-4">{l.module_title}</td>
+              <td className="p-3 sm:p-4">{l.position}</td>
+              <td className="p-3 sm:p-4">
               <StatusBadge active={l.active} />
             </td>
             <ActionButtons

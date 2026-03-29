@@ -85,8 +85,8 @@ const DashboardPage = () => {
 
   return (
     <div>
-      <h1 className="text-2xl font-display font-extrabold mb-6">Dashboard ⚙️</h1>
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <h1 className="text-xl sm:text-2xl font-display font-extrabold mb-6">Dashboard ⚙️</h1>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {cards.map((s, i) => (
           <motion.div key={s.label} className="bg-card rounded-2xl shadow-card p-5" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}>
             <p className="text-xs text-muted-foreground font-bold mb-1">{s.label}</p>

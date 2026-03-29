@@ -210,10 +210,10 @@ const UsersPage = () => {
 
   return (
     <div>
-      <h1 className="text-2xl font-display font-extrabold mb-6">Usuários ⚙️</h1>
+      <h1 className="text-xl sm:text-2xl font-display font-extrabold mb-6">Usuários ⚙️</h1>
 
       <Dialog open={detailOpen} onOpenChange={setDetailOpen}>
-        <DialogContent className="sm:max-w-3xl">
+        <DialogContent className="w-[calc(100vw-2rem)] sm:max-w-3xl">
           <DialogHeader>
             <DialogTitle>Detalhes do usuário</DialogTitle>
           </DialogHeader>
@@ -258,14 +258,14 @@ const UsersPage = () => {
                   <p className="text-muted-foreground font-bold">Sem ciclos encontrados.</p>
                 ) : (
                   <div className="overflow-x-auto">
-                    <table className="w-full text-sm">
+                    <table className="min-w-[760px] w-full text-sm">
                       <thead>
                         <tr className="border-b border-border bg-muted/50">
-                          <th className="text-left p-4 font-bold text-muted-foreground">Plano</th>
-                          <th className="text-left p-4 font-bold text-muted-foreground">Status</th>
-                          <th className="text-left p-4 font-bold text-muted-foreground">Início</th>
-                          <th className="text-left p-4 font-bold text-muted-foreground">Vencimento</th>
-                          <th className="text-right p-4 font-bold text-muted-foreground">Valor</th>
+                          <th className="text-left p-3 sm:p-4 font-bold text-muted-foreground">Plano</th>
+                          <th className="text-left p-3 sm:p-4 font-bold text-muted-foreground">Status</th>
+                          <th className="text-left p-3 sm:p-4 font-bold text-muted-foreground">Início</th>
+                          <th className="text-left p-3 sm:p-4 font-bold text-muted-foreground">Vencimento</th>
+                          <th className="text-right p-3 sm:p-4 font-bold text-muted-foreground">Valor</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -277,13 +277,13 @@ const UsersPage = () => {
                           const value = Number(c.value ?? 0);
                           return (
                             <tr key={c.id} className="border-b border-border last:border-0 hover:bg-muted/30 transition-colors">
-                              <td className="p-4 font-bold">{c.plans?.name ?? "—"}</td>
-                              <td className="p-4">
+                              <td className="p-3 sm:p-4 font-bold">{c.plans?.name ?? "—"}</td>
+                              <td className="p-3 sm:p-4">
                                 <StatusBadge active={active} activeLabel="Ativa" inactiveLabel={c.status ?? "—"} />
                               </td>
-                              <td className="p-4">{started}</td>
-                              <td className="p-4">{expires}</td>
-                              <td className="p-4 text-right">{`R$ ${value.toFixed(2)}`}</td>
+                              <td className="p-3 sm:p-4">{started}</td>
+                              <td className="p-3 sm:p-4">{expires}</td>
+                              <td className="p-3 sm:p-4 text-right">{`R$ ${value.toFixed(2)}`}</td>
                             </tr>
                           );
                         })}
@@ -303,7 +303,7 @@ const UsersPage = () => {
       </Dialog>
 
       <Dialog open={userDialogOpen} onOpenChange={setUserDialogOpen}>
-        <DialogContent className="sm:max-w-xl">
+        <DialogContent className="w-[calc(100vw-2rem)] sm:max-w-xl">
           <DialogHeader>
             <DialogTitle>Editar usuário</DialogTitle>
           </DialogHeader>
@@ -552,13 +552,13 @@ const UsersPage = () => {
         data={usersData}
         renderRow={(u) => (
           <tr key={u.id} className="border-b border-border last:border-0 hover:bg-muted/30 transition-colors">
-            <td className="p-4 font-bold">{u.name}</td>
-            <td className="p-4">{u.email}</td>
-            <td className="p-4">{u.plan}</td>
-            <td className="p-4">
+            <td className="p-3 sm:p-4 font-bold">{u.name}</td>
+            <td className="p-3 sm:p-4">{u.email}</td>
+            <td className="p-3 sm:p-4">{u.plan}</td>
+            <td className="p-3 sm:p-4">
               <StatusBadge active={(u.subscription_status ?? "").toLowerCase() === "active" || (u.subscription_status ?? "").toLowerCase() === "ativa"} activeLabel="Ativa" inactiveLabel="—" />
             </td>
-            <td className="p-4">{u.role ?? "user"}</td>
+            <td className="p-3 sm:p-4">{u.role ?? "user"}</td>
             <ActionButtons
               onView={() => openDetails(u.id)}
               onEdit={() => {

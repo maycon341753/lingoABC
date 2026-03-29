@@ -14,15 +14,15 @@ export const CrudTable = <T,>({
 }) => (
   <div className="bg-card rounded-2xl shadow-card overflow-hidden">
     <div className="overflow-x-auto">
-      <table className="w-full text-sm">
+      <table className="min-w-[760px] w-full text-sm">
         <thead>
           <tr className="border-b border-border bg-muted/50">
             {columns.map((c) => (
-              <th key={c} className="text-left p-4 font-bold text-muted-foreground">
+              <th key={c} className="text-left p-3 sm:p-4 font-bold text-muted-foreground whitespace-nowrap">
                 {c}
               </th>
             ))}
-            <th className="text-right p-4 font-bold text-muted-foreground">Ações</th>
+            <th className="text-right p-3 sm:p-4 font-bold text-muted-foreground whitespace-nowrap">Ações</th>
           </tr>
         </thead>
         <tbody>{data.map((item, i) => renderRow(item, i))}</tbody>
@@ -43,27 +43,27 @@ export const ActionButtons = ({
   const [open, setOpen] = useState(false);
 
   return (
-    <td className="p-4 text-right">
+    <td className="p-3 sm:p-4 text-right whitespace-nowrap">
       <div className="flex justify-end gap-2">
         {onView && (
-          <button type="button" className="p-2 rounded-lg hover:bg-muted transition-colors text-primary" onClick={onView}>
+          <button type="button" className="h-11 w-11 inline-flex items-center justify-center rounded-xl hover:bg-muted transition-colors text-primary" onClick={onView}>
             <Eye className="w-4 h-4" />
           </button>
         )}
         {onEdit && (
-          <button type="button" className="p-2 rounded-lg hover:bg-muted transition-colors text-accent" onClick={onEdit}>
+          <button type="button" className="h-11 w-11 inline-flex items-center justify-center rounded-xl hover:bg-muted transition-colors text-accent" onClick={onEdit}>
             <Pencil className="w-4 h-4" />
           </button>
         )}
         {onDelete && (
-          <button type="button" className="p-2 rounded-lg hover:bg-muted transition-colors text-destructive" onClick={() => setOpen(true)}>
+          <button type="button" className="h-11 w-11 inline-flex items-center justify-center rounded-xl hover:bg-muted transition-colors text-destructive" onClick={() => setOpen(true)}>
             <Trash2 className="w-4 h-4" />
           </button>
         )}
       </div>
       {onDelete && (
         <Dialog open={open} onOpenChange={setOpen}>
-          <DialogContent className="sm:max-w-md">
+          <DialogContent className="w-[calc(100vw-2rem)] sm:max-w-md">
             <DialogHeader>
               <DialogTitle>Excluir item</DialogTitle>
             </DialogHeader>

@@ -81,7 +81,7 @@ const VideosPage = () => {
 
   return (
     <div>
-      <h1 className="text-2xl font-display font-extrabold mb-6">Vídeos ⚙️</h1>
+      <h1 className="text-xl sm:text-2xl font-display font-extrabold mb-6">Vídeos ⚙️</h1>
 
       <div className="mb-6">
         <Button
@@ -98,7 +98,7 @@ const VideosPage = () => {
       </div>
 
       <Dialog open={uploadOpen} onOpenChange={setUploadOpen}>
-        <DialogContent className="sm:max-w-xl">
+        <DialogContent className="w-[calc(100vw-2rem)] sm:max-w-xl">
           <DialogHeader>
             <DialogTitle>Upload de conteúdo</DialogTitle>
           </DialogHeader>
@@ -286,10 +286,10 @@ const VideosPage = () => {
           data={rows}
           renderRow={(v) => (
             <tr key={v.id} className="border-b border-border last:border-0 hover:bg-muted/30 transition-colors">
-              <td className="p-4 font-bold">{v.title}</td>
-              <td className="p-4">{v.module ?? "—"}</td>
-              <td className="p-4">{v.is_music ? "Música" : "Vídeo"}</td>
-              <td className="p-4">{v.active ? "Ativo" : "Inativo"}</td>
+              <td className="p-3 sm:p-4 font-bold">{v.title}</td>
+              <td className="p-3 sm:p-4">{v.module ?? "—"}</td>
+              <td className="p-3 sm:p-4">{v.is_music ? "Música" : "Vídeo"}</td>
+              <td className="p-3 sm:p-4">{v.active ? "Ativo" : "Inativo"}</td>
               <ActionButtons
                 onEdit={() => {
                   setEditError(null);
@@ -333,7 +333,7 @@ const VideosPage = () => {
           }
         }}
       >
-        <DialogContent className="sm:max-w-xl">
+        <DialogContent className="w-[calc(100vw-2rem)] sm:max-w-xl">
           <DialogHeader>
             <DialogTitle>Editar vídeo/música</DialogTitle>
           </DialogHeader>

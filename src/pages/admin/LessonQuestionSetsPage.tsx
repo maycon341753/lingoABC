@@ -164,12 +164,12 @@ const LessonQuestionSetsPage = () => {
 
   return (
     <div>
-      <div className="flex items-center justify-between gap-4 mb-6">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
         <div>
-          <h1 className="text-2xl font-display font-extrabold">Questões das Lições 🧩</h1>
+          <h1 className="text-xl sm:text-2xl font-display font-extrabold">Questões das Lições 🧩</h1>
           <p className="text-muted-foreground font-bold text-sm">Conteúdo por matéria + módulo + lição (fallback automático se não existir).</p>
         </div>
-        <Button className="rounded-xl font-bold bg-gradient-hero text-primary-foreground" onClick={openCreate}>
+        <Button className="rounded-xl font-bold bg-gradient-hero text-primary-foreground w-full sm:w-auto" onClick={openCreate}>
           Nova questão
         </Button>
       </div>
@@ -182,13 +182,13 @@ const LessonQuestionSetsPage = () => {
           data={data}
           renderRow={(r) => (
             <tr key={r.id} className="border-b border-border last:border-0 hover:bg-muted/30 transition-colors">
-              <td className="p-4 font-bold">{subjectOptions.find((x) => x.id === r.subject)?.label ?? r.subject}</td>
-              <td className="p-4">{r.phase}</td>
-              <td className="p-4">{r.lesson_id}</td>
-              <td className="p-4">
+              <td className="p-3 sm:p-4 font-bold">{subjectOptions.find((x) => x.id === r.subject)?.label ?? r.subject}</td>
+              <td className="p-3 sm:p-4">{r.phase}</td>
+              <td className="p-3 sm:p-4">{r.lesson_id}</td>
+              <td className="p-3 sm:p-4">
                 <StatusBadge active={r.active} />
               </td>
-              <td className="p-4">{r.updated_at ? new Date(r.updated_at).toLocaleString("pt-BR") : "—"}</td>
+              <td className="p-3 sm:p-4">{r.updated_at ? new Date(r.updated_at).toLocaleString("pt-BR") : "—"}</td>
               <ActionButtons
                 onEdit={() => openEdit(r)}
                 onDelete={async () => {
@@ -206,13 +206,13 @@ const LessonQuestionSetsPage = () => {
       )}
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="sm:max-w-2xl">
+        <DialogContent className="w-[calc(100vw-2rem)] sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle>{editingId ? `Editar: ${title}` : `Criar: ${title}`}</DialogTitle>
           </DialogHeader>
 
           <div className="grid gap-4">
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div className="grid gap-2">
                 <Label>Matéria</Label>
                 <select className="h-10 rounded-xl border bg-background px-3 text-sm font-bold" value={subject} onChange={(e) => setSubject(e.target.value)}>
@@ -283,4 +283,3 @@ const LessonQuestionSetsPage = () => {
 };
 
 export default LessonQuestionSetsPage;
-

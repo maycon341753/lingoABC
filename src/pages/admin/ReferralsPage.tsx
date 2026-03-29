@@ -128,7 +128,7 @@ const ReferralsPage = () => {
 
   return (
     <div>
-      <h1 className="text-2xl font-display font-extrabold mb-6">Indicações ⚙️</h1>
+      <h1 className="text-xl sm:text-2xl font-display font-extrabold mb-6">Indicações ⚙️</h1>
 
       <div className="mb-4">
         <Button
@@ -145,7 +145,7 @@ const ReferralsPage = () => {
       </div>
 
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
-        <DialogContent className="sm:max-w-xl">
+        <DialogContent className="w-[calc(100vw-2rem)] sm:max-w-xl">
           <DialogHeader>
             <DialogTitle>{editingId ? "Editar link" : "Novo link"}</DialogTitle>
           </DialogHeader>
@@ -208,14 +208,14 @@ const ReferralsPage = () => {
           data={rows}
           renderRow={(r) => (
             <tr key={r.id} className="border-b border-border last:border-0 hover:bg-muted/30 transition-colors">
-              <td className="p-4 font-bold">{r.owner_name}</td>
-              <td className="p-4">{r.code}</td>
-              <td className="p-4">{r.clicks}</td>
-              <td className="p-4">{r.signups}</td>
-              <td className="p-4">{r.conversions}</td>
-              <td className="p-4">R$ {r.total_amount.toFixed(2)}</td>
-              <td className="p-4">{r.commission_percent}%</td>
-              <td className="p-4 font-bold text-primary">R$ {r.commission_due.toFixed(2)}</td>
+              <td className="p-3 sm:p-4 font-bold">{r.owner_name}</td>
+              <td className="p-3 sm:p-4">{r.code}</td>
+              <td className="p-3 sm:p-4">{r.clicks}</td>
+              <td className="p-3 sm:p-4">{r.signups}</td>
+              <td className="p-3 sm:p-4">{r.conversions}</td>
+              <td className="p-3 sm:p-4">R$ {r.total_amount.toFixed(2)}</td>
+              <td className="p-3 sm:p-4">{r.commission_percent}%</td>
+              <td className="p-3 sm:p-4 font-bold text-primary">R$ {r.commission_due.toFixed(2)}</td>
               <ActionButtons
                 onEdit={() => {
                   setEditingId(r.id);
@@ -244,15 +244,15 @@ const ReferralsPage = () => {
         ) : (
           <div className="bg-card rounded-2xl shadow-card overflow-hidden">
             <div className="overflow-x-auto">
-              <table className="w-full text-sm">
+              <table className="min-w-[760px] w-full text-sm">
                 <thead>
                   <tr className="border-b border-border bg-muted/50">
-                    <th className="text-left p-4 font-bold text-muted-foreground">Data</th>
-                    <th className="text-left p-4 font-bold text-muted-foreground">Usuário</th>
-                    <th className="text-left p-4 font-bold text-muted-foreground">PIX</th>
-                    <th className="text-left p-4 font-bold text-muted-foreground">Status</th>
-                    <th className="text-left p-4 font-bold text-muted-foreground">Valor</th>
-                    <th className="text-right p-4 font-bold text-muted-foreground">Ações</th>
+                    <th className="text-left p-3 sm:p-4 font-bold text-muted-foreground">Data</th>
+                    <th className="text-left p-3 sm:p-4 font-bold text-muted-foreground">Usuário</th>
+                    <th className="text-left p-3 sm:p-4 font-bold text-muted-foreground">PIX</th>
+                    <th className="text-left p-3 sm:p-4 font-bold text-muted-foreground">Status</th>
+                    <th className="text-left p-3 sm:p-4 font-bold text-muted-foreground">Valor</th>
+                    <th className="text-right p-3 sm:p-4 font-bold text-muted-foreground">Ações</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -279,14 +279,14 @@ const ReferralsPage = () => {
                       const canPay = canEditCommission && st === "pending";
                       return (
                         <tr key={w.id} className="border-b border-border last:border-0 hover:bg-muted/30 transition-colors">
-                          <td className="p-4">{dt}</td>
-                          <td className="p-4 font-bold">{userLabel}</td>
-                          <td className="p-4">{pix}</td>
-                          <td className="p-4">
+                          <td className="p-3 sm:p-4">{dt}</td>
+                          <td className="p-3 sm:p-4 font-bold">{userLabel}</td>
+                          <td className="p-3 sm:p-4">{pix}</td>
+                          <td className="p-3 sm:p-4">
                             <span className={`px-2 py-1 rounded-full text-xs font-bold ${badge}`}>{label}</span>
                           </td>
-                          <td className="p-4 font-bold">{`R$ ${value.toFixed(2)}`}</td>
-                          <td className="p-4 text-right">
+                          <td className="p-3 sm:p-4 font-bold">{`R$ ${value.toFixed(2)}`}</td>
+                          <td className="p-3 sm:p-4 text-right">
                             <div className="flex justify-end gap-2">
                               <Button
                                 className="rounded-xl bg-gradient-hero font-bold"

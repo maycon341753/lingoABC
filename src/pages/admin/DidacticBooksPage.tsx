@@ -177,7 +177,7 @@ const DidacticBooksAdminPage = () => {
 
   return (
     <div>
-      <h1 className="text-2xl font-display font-extrabold mb-6">Livros Didáticos ⚙️</h1>
+      <h1 className="text-xl sm:text-2xl font-display font-extrabold mb-6">Livros Didáticos ⚙️</h1>
 
       <div className="mb-4">
         <Button
@@ -210,7 +210,7 @@ const DidacticBooksAdminPage = () => {
           }
         }}
       >
-        <DialogContent className="sm:max-w-xl">
+        <DialogContent className="w-[calc(100vw-2rem)] sm:max-w-xl">
           <DialogHeader>
             <DialogTitle>{editingId ? "Editar livro" : "Novo livro"}</DialogTitle>
           </DialogHeader>
@@ -286,11 +286,11 @@ const DidacticBooksAdminPage = () => {
           data={rows}
           renderRow={(r) => (
             <tr key={r.id} className="border-b border-border last:border-0 hover:bg-muted/30 transition-colors">
-              <td className="p-4 font-bold">{r.title}</td>
-              <td className="p-4">{r.subject ?? "—"}</td>
-              <td className="p-4">{r.module ?? "—"}</td>
-              <td className="p-4">{r.active ? "Sim" : "Não"}</td>
-              <td className="p-4">{new Date(r.created_at).toLocaleDateString("pt-BR")}</td>
+              <td className="p-3 sm:p-4 font-bold">{r.title}</td>
+              <td className="p-3 sm:p-4">{r.subject ?? "—"}</td>
+              <td className="p-3 sm:p-4">{r.module ?? "—"}</td>
+              <td className="p-3 sm:p-4">{r.active ? "Sim" : "Não"}</td>
+              <td className="p-3 sm:p-4">{new Date(r.created_at).toLocaleDateString("pt-BR")}</td>
               <ActionButtons
                 onEdit={() => {
                   setEditingId(r.id);
@@ -314,4 +314,3 @@ const DidacticBooksAdminPage = () => {
 };
 
 export default DidacticBooksAdminPage;
-

@@ -31,7 +31,7 @@ const ModulesPage = () => {
 
   return (
     <div>
-      <h1 className="text-2xl font-display font-extrabold mb-6">Módulos ⚙️</h1>
+      <h1 className="text-xl sm:text-2xl font-display font-extrabold mb-6">Módulos ⚙️</h1>
       {loading ? (
         <p className="text-muted-foreground font-bold">Carregando…</p>
       ) : (
@@ -40,10 +40,10 @@ const ModulesPage = () => {
           data={data}
           renderRow={(m) => (
             <tr key={m.id} className="border-b border-border last:border-0 hover:bg-muted/30 transition-colors">
-              <td className="p-4 font-bold">{m.title}</td>
-              <td className="p-4">{m.subject}</td>
-              <td className="p-4">{m.phase}</td>
-              <td className="p-4">
+              <td className="p-3 sm:p-4 font-bold">{m.title}</td>
+              <td className="p-3 sm:p-4">{m.subject}</td>
+              <td className="p-3 sm:p-4">{m.phase}</td>
+              <td className="p-3 sm:p-4">
                 <StatusBadge active={m.active} />
               </td>
               <ActionButtons />

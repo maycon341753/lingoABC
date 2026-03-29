@@ -96,7 +96,7 @@ const PlansManagePage = () => {
 
   return (
     <div>
-      <h1 className="text-2xl font-display font-extrabold mb-6">Planos ⚙️</h1>
+      <h1 className="text-xl sm:text-2xl font-display font-extrabold mb-6">Planos ⚙️</h1>
 
       <div className="mb-4">
         <Button
@@ -116,7 +116,7 @@ const PlansManagePage = () => {
       </div>
 
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
-        <DialogContent className="sm:max-w-xl">
+        <DialogContent className="w-[calc(100vw-2rem)] sm:max-w-xl">
           <DialogHeader>
             <DialogTitle>{editingId ? "Editar plano" : "Novo plano"}</DialogTitle>
           </DialogHeader>
@@ -229,7 +229,7 @@ const PlansManagePage = () => {
           }
         }}
       >
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="w-[calc(100vw-2rem)] sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Excluir plano</DialogTitle>
           </DialogHeader>
@@ -303,11 +303,11 @@ const PlansManagePage = () => {
           data={rows}
           renderRow={(p) => (
             <tr key={p.id} className="border-b border-border last:border-0 hover:bg-muted/30 transition-colors">
-              <td className="p-4 font-bold">{p.code ?? "—"}</td>
-              <td className="p-4">{p.name}</td>
-              <td className="p-4">{p.period_months}</td>
-              <td className="p-4">{p.billing_cycle ?? "—"}</td>
-              <td className="p-4">R$ {p.price.toFixed(2)}</td>
+              <td className="p-3 sm:p-4 font-bold">{p.code ?? "—"}</td>
+              <td className="p-3 sm:p-4">{p.name}</td>
+              <td className="p-3 sm:p-4">{p.period_months}</td>
+              <td className="p-3 sm:p-4">{p.billing_cycle ?? "—"}</td>
+              <td className="p-3 sm:p-4">R$ {p.price.toFixed(2)}</td>
               <ActionButtons
                 onEdit={() => {
                   setEditingId(p.id);
