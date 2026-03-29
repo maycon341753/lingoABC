@@ -63,7 +63,14 @@ const App = () => (
             <Route path="/modulo-desenvolvimento" element={<Navigate to="/modulos/matematica/desenvolvimento" replace />} />
             <Route path="/modulo-dominio" element={<Navigate to="/modulos/matematica/dominio" replace />} />
             <Route path="/licao" element={<Lesson />} />
-            <Route path="/videos" element={<Videos />} />
+            <Route
+              path="/videos"
+              element={
+                <RequireAuth>
+                  <Videos />
+                </RequireAuth>
+              }
+            />
             <Route path="/sobre" element={<About />} />
             <Route path="/blog" element={<Blog />} />
             <Route path="/blog/:slug" element={<BlogPost />} />
