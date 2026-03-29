@@ -133,7 +133,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       ...(a.created_at ? { created_at: a.created_at } : {}),
     }));
     const up = await supabaseAdmin.from("user_activity_progress").upsert(toUpsert, { onConflict: "user_id,subject,module,lesson_id" });
-    if (up.error) return res.status(500).json({ error: "upsert_failed", table: "user_activity_progress", message: up.error.message });
+    if (up.error) {
+      const msg = String(up.error.message ?? "").toLowerCase();
+      const noConstraint = msg.includes("no unique or exclusion constraint") || msg.includes("42p10");
+      if (!noConstraint) return res.status(500).json({ error: "upsert_failed", table: "user_activity_progress", message: up.error.message });
+      const ins = await supabaseAdmin.from("user_activity_progress").insert(toUpsert);
+      if (ins.error) return res.status(500).json({ error: "insert_failed", table: "user_activity_progress", message: ins.error.message });
+    }
   }
 
   if (moduleProgress.length > 0) {
@@ -146,7 +152,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       updated_at: new Date().toISOString(),
     }));
     const up = await supabaseAdmin.from("user_module_progress").upsert(toUpsert, { onConflict: "user_id,subject,module" });
-    if (up.error) return res.status(500).json({ error: "upsert_failed", table: "user_module_progress", message: up.error.message });
+    if (up.error) {
+      const msg = String(up.error.message ?? "").toLowerCase();
+      const noConstraint = msg.includes("no unique or exclusion constraint") || msg.includes("42p10");
+      if (!noConstraint) return res.status(500).json({ error: "upsert_failed", table: "user_module_progress", message: up.error.message });
+      const ins = await supabaseAdmin.from("user_module_progress").insert(toUpsert);
+      if (ins.error) return res.status(500).json({ error: "insert_failed", table: "user_module_progress", message: ins.error.message });
+    }
   }
 
   return res.status(200).json({ ok: true, activities: activities.length, modules: moduleProgress.length });

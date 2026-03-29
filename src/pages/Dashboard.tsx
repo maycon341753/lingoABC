@@ -159,15 +159,61 @@ const DashboardPage = () => {
             | null;
           if (mountedRef && !mountedRef.current) return;
           if (r.ok && j?.ok) {
+            const apiCompleted = Number(j.completedActivities ?? 0);
+            const apiPoints = Number(j.points ?? 0);
             setWelcomeName(String(j.welcomeName ?? "estudante"));
             setPlanName(j.planName ?? null);
             setPlanStatus(j.planStatus ?? null);
             setLessonsTotal(Number(j.lessonsTotal ?? 0));
-            setCompletedActivities(Number(j.completedActivities ?? 0));
-            setPoints(Number(j.points ?? 0));
+            setCompletedActivities(apiCompleted);
+            setPoints(apiPoints);
             setStreakDays(Number(j.streakDays ?? 0));
-            setLoading(false);
-            return;
+            if (apiCompleted > 0 || apiPoints > 0) {
+              setLoading(false);
+              return;
+            }
+
+            const local = parseLocalProgress(uid);
+            if (local.activities.length > 0) {
+              const localPoints = local.activities.reduce((sum, a) => sum + Number(a.score ?? 0), 0);
+              setCompletedActivities(local.activities.length);
+              setPoints(localPoints);
+              const synced = await syncLocalToServer(uid);
+              if (synced) {
+                try {
+                  const r2 = await fetch(buildApiUrl("/api/user/dashboard-metrics"), {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+                  });
+                  const j2 = (await r2.json().catch(() => null)) as
+                    | {
+                        ok?: boolean;
+                        completedActivities?: number;
+                        points?: number;
+                        streakDays?: number;
+                        lessonsTotal?: number;
+                        planName?: string | null;
+                        planStatus?: string | null;
+                        welcomeName?: string;
+                      }
+                    | null;
+                  if (mountedRef && !mountedRef.current) return;
+                  if (r2.ok && j2?.ok) {
+                    setWelcomeName(String(j2.welcomeName ?? j.welcomeName ?? "estudante"));
+                    setPlanName(j2.planName ?? j.planName ?? null);
+                    setPlanStatus(j2.planStatus ?? j.planStatus ?? null);
+                    setLessonsTotal(Number(j2.lessonsTotal ?? j.lessonsTotal ?? 0));
+                    setCompletedActivities(Number(j2.completedActivities ?? 0));
+                    setPoints(Number(j2.points ?? 0));
+                    setStreakDays(Number(j2.streakDays ?? 0));
+                  }
+                } catch {
+                  void 0;
+                }
+              }
+              setLoading(false);
+              return;
+            }
           }
         } catch {
           void 0;

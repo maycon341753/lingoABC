@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,7 +7,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import mascot from "@/assets/mascot-owl.png";
 import { supabase } from "@/lib/supabase";
-import { BookOpen, Brain, CheckCircle, Eye, EyeOff, Sparkles } from "lucide-react";
+import { BookOpen, Brain, CheckCircle, Eye, EyeOff, Music, Sparkles } from "lucide-react";
 import { useSeo } from "@/lib/useSeo";
 
 const formatCpf = (value: string) => {
@@ -42,6 +42,7 @@ const RegisterPage = () => {
   const [refOwnerName, setRefOwnerName] = useState<string | null>(null);
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const formRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     const fromUrl = String(searchParams.get("ref") ?? "").trim();
@@ -105,6 +106,8 @@ const RegisterPage = () => {
 
       <div className="w-full max-w-5xl grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-10 items-start">
         <motion.div
+          ref={formRef}
+          id="cadastro-form"
           className="w-full bg-card rounded-3xl shadow-card p-8 order-1"
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
@@ -294,6 +297,15 @@ const RegisterPage = () => {
               </div>
             </div>
             <div className="flex items-start gap-3">
+              <div className="w-10 h-10 rounded-xl bg-muted flex items-center justify-center text-accent shrink-0">
+                <Music className="w-5 h-5" />
+              </div>
+              <div>
+                <p className="font-extrabold">Músicas</p>
+                <p className="text-sm text-muted-foreground font-bold">+ de 100 músicas para aprendizado.</p>
+              </div>
+            </div>
+            <div className="flex items-start gap-3">
               <div className="w-10 h-10 rounded-xl bg-muted flex items-center justify-center text-sun shrink-0">
                 <Sparkles className="w-5 h-5" />
               </div>
@@ -318,6 +330,21 @@ const RegisterPage = () => {
               <CheckCircle className="w-5 h-5 text-primary shrink-0 mt-0.5" />
               <p className="text-sm text-muted-foreground font-bold">Crie sua conta e comece as lições agora.</p>
             </div>
+          </div>
+
+          <div className="mt-4">
+            <Button
+              type="button"
+              className="w-full bg-gradient-hero font-bold rounded-xl py-5 text-lg"
+              onClick={() => {
+                formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+                window.setTimeout(() => {
+                  (document.getElementById("name") as HTMLInputElement | null)?.focus();
+                }, 350);
+              }}
+            >
+              Criar Conta Grátis 🚀
+            </Button>
           </div>
         </motion.div>
       </div>
