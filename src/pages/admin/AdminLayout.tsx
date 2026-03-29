@@ -65,7 +65,7 @@ const AdminLayout = () => {
             </button>
           </div>
           <nav className="px-2 space-y-1">
-            {[...items, ...(isSuperAdmin ? [{ to: "/admin/questoes", label: "Questões", icon: ListChecks }] : [])].map((t) => (
+            {[...items, ...(isSuperAdmin ? [{ to: "/admin/questoes", label: "Questões", icon: ListChecks }, { to: "/admin/livros", label: "Livros", icon: BookOpen }] : [])].map((t) => (
               <NavLink
                 key={t.to}
                 to={t.to}

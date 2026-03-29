@@ -12,6 +12,7 @@ import ReportsPage from "./admin/ReportsPage";
 import LessonQuestionSetsPage from "./admin/LessonQuestionSetsPage";
 import SeoPage from "./admin/SeoPage";
 import SeoEventsPage from "./admin/SeoEventsPage";
+import DidacticBooksPage from "./admin/DidacticBooksPage";
 
 const AdminRoutes = () => (
   <Routes>
@@ -25,6 +26,7 @@ const AdminRoutes = () => (
       <Route path="planos" element={<PlansManagePage />} />
       <Route path="indicacoes" element={<ReferralsPage />} />
       <Route path="videos" element={<VideosPage />} />
+      <Route path="livros" element={<DidacticBooksPage />} />
       <Route path="relatorios" element={<ReportsPage />} />
       <Route path="seo" element={<SeoPage />} />
       <Route path="seo/eventos" element={<SeoEventsPage />} />

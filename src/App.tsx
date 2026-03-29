@@ -28,6 +28,9 @@ const UserPlans = lazy(() => import("./pages/UserPlans.tsx"));
 const UserInvoices = lazy(() => import("./pages/UserInvoices.tsx"));
 const Blog = lazy(() => import("./pages/Blog.tsx"));
 const BlogPost = lazy(() => import("./pages/BlogPost.tsx"));
+const Lgpd = lazy(() => import("./pages/Lgpd.tsx"));
+const Eca = lazy(() => import("./pages/Eca.tsx"));
+const DidacticBooks = lazy(() => import("./pages/DidacticBooks.tsx"));
 const NotFound = lazy(() => import("./pages/NotFound.tsx"));
 
 const App = () => (
@@ -47,6 +50,14 @@ const App = () => (
             <Route path="/modulos" element={<Modules />} />
             <Route path="/modulos/:subject" element={<Modules />} />
             <Route path="/modulos/:subject/:module" element={<Modules />} />
+            <Route
+              path="/modulos/livros-didaticos"
+              element={
+                <RequireAuth>
+                  <DidacticBooks />
+                </RequireAuth>
+              }
+            />
             <Route path="/modulo-descoberta" element={<Navigate to="/modulos/matematica/descoberta" replace />} />
             <Route path="/modulo-construcao" element={<Navigate to="/modulos/matematica/construcao" replace />} />
             <Route path="/modulo-desenvolvimento" element={<Navigate to="/modulos/matematica/desenvolvimento" replace />} />
@@ -72,6 +83,8 @@ const App = () => (
             <Route path="/indicacao" element={<Referral />} />
             <Route path="/admin/*" element={<Admin />} />
             <Route path="/perfil" element={<Profile />} />
+            <Route path="/lgpd" element={<Lgpd />} />
+            <Route path="/eca" element={<Eca />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </Suspense>
