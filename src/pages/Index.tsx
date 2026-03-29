@@ -43,6 +43,15 @@ const Index = () => {
           "Plataforma educacional infantil gamificada para crianças: matemática, português e inglês. Aprender brincando com reforço escolar infantil.",
         brand: { "@type": "Brand", name: "LingoABC" },
         image: [logoUrl],
+        offers: {
+          "@type": "AggregateOffer",
+          priceCurrency: "BRL",
+          lowPrice: 74.9,
+          highPrice: 259.9,
+          offerCount: 3,
+          url: origin ? `${origin}/planos` : "/planos",
+          availability: "https://schema.org/InStock",
+        },
       },
       {
         "@context": "https://schema.org",
