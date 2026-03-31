@@ -47,9 +47,30 @@ const App = () => (
             <Route path="/" element={<Index />} />
             <Route path="/planos" element={<Plans />} />
             <Route path="/plano-assinatura" element={<Navigate to="/planos" replace />} />
-            <Route path="/modulos" element={<Modules />} />
-            <Route path="/modulos/:subject" element={<Modules />} />
-            <Route path="/modulos/:subject/:module" element={<Modules />} />
+            <Route
+              path="/modulos"
+              element={
+                <RequireAuth>
+                  <Modules />
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/modulos/:subject"
+              element={
+                <RequireAuth>
+                  <Modules />
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/modulos/:subject/:module"
+              element={
+                <RequireAuth>
+                  <Modules />
+                </RequireAuth>
+              }
+            />
             <Route
               path="/modulos/livros-didaticos"
               element={
