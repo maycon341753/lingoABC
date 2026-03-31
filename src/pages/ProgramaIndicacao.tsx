@@ -162,7 +162,7 @@ const ProgramaIndicacaoPage = () => {
                   <div className="rounded-2xl border border-border bg-muted/30 p-4">
                     <p className="text-sm text-muted-foreground font-bold">Exemplo real</p>
                     <p className="mt-2 text-xl font-extrabold">10 assinaturas</p>
-                    <p className="text-sm text-muted-foreground font-bold mt-1">= ganhos recorrentes</p>
+                    <p className="text-sm text-muted-foreground font-bold mt-1">= comissão paga 1 vez por assinatura confirmada</p>
                   </div>
                   <div className="rounded-2xl border border-border bg-muted/30 p-4">
                     <p className="text-sm text-muted-foreground font-bold">Fácil de acompanhar</p>
